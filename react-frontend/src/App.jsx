@@ -1,15 +1,14 @@
-import logo from './logo.svg';
 import './App.css';
-import NavBar from './components/NavBar';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import HomePage from './pages/HomePage';
 
 function App() {
   return (
-    <div>
-      <NavBar />
-      <NavBar />
-      <NavBar />
-      <NavBar />
-    </div>
+    <Router>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+        </Routes>
+    </Router>
   );
 }
 
