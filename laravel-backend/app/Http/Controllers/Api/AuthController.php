@@ -91,13 +91,12 @@ class AuthController extends Controller
 
             $token = $user->createToken('auth-token')->plainTextToken;
 
-            return response()->json([
-                'user' => $user,
-                'token' => $token,
-                'token_type' => 'Bearer',
-            ]);
+            // Redirect to frontend with token and user data
+            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            return redirect($frontendUrl . '/auth/callback?token=' . $token . '&user=' . urlencode(json_encode($user)));
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Authentication failed'], 500);
+            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            return redirect($frontendUrl . '/auth/callback?error=Authentication failed');
         }
     }
 }
