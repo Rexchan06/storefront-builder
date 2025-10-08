@@ -33,6 +33,8 @@ class StoreController extends Controller
             'store_name' => 'required|string|max:255',
             'store_slug' => 'required|string|unique:stores',
             'description' => 'nullable|string',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'background_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'contact_email' => 'nullable|email',
             'contact_phone' => 'nullable|string',
             'address' => 'nullable|string',
@@ -45,7 +47,30 @@ class StoreController extends Controller
             ], 422);
         }
 
-        $store = Store::create(array_merge($validated, ['user_id' => $user->id]));
+        // Handle logo upload
+        $logoPath = null;
+        if ($request->hasFile('logo')) {
+            $logoPath = $request->file('logo')->store('stores/logos', 'public');
+        }
+
+        // Handle background image upload
+        $backgroundImagePath = null;
+        if ($request->hasFile('background_image')) {
+            $backgroundImagePath = $request->file('background_image')->store('stores/backgrounds', 'public');
+        }
+
+        $store = Store::create([
+            'user_id' => $user->id,
+            'store_name' => $validated['store_name'],
+            'store_slug' => $validated['store_slug'],
+            'description' => $validated['description'] ?? null,
+            'logo' => $logoPath,
+            'background_image' => $backgroundImagePath,
+            'contact_email' => $validated['contact_email'] ?? null,
+            'contact_phone' => $validated['contact_phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'is_active' => $validated['is_active'] ?? false,
+        ]);
 
         return response()->json([
             'message' => 'Store created successfully',
@@ -84,11 +109,31 @@ class StoreController extends Controller
             'store_name' => 'sometimes|string|max:255',
             'store_slug' => 'sometimes|string|unique:stores,store_slug,' . $id,
             'description' => 'nullable|string',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'background_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'contact_email' => 'nullable|email',
             'contact_phone' => 'nullable|string',
             'address' => 'nullable|string',
             'is_active' => 'boolean',
         ]);
+
+        // Handle logo upload
+        if ($request->hasFile('logo')) {
+            // Delete old logo if exists
+            if ($store->logo && \Storage::disk('public')->exists($store->logo)) {
+                \Storage::disk('public')->delete($store->logo);
+            }
+            $validated['logo'] = $request->file('logo')->store('stores/logos', 'public');
+        }
+
+        // Handle background image upload
+        if ($request->hasFile('background_image')) {
+            // Delete old background image if exists
+            if ($store->background_image && \Storage::disk('public')->exists($store->background_image)) {
+                \Storage::disk('public')->delete($store->background_image);
+            }
+            $validated['background_image'] = $request->file('background_image')->store('stores/backgrounds', 'public');
+        }
 
         $store->update($validated);
 

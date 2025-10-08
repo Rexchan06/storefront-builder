@@ -15,6 +15,7 @@ class Store extends Model
         'store_slug',
         'description',
         'logo',
+        'background_image',
         'contact_email',
         'contact_phone',
         'address',
