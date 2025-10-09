@@ -37,7 +37,15 @@ function NavBar() {
             }}
         >
             {/* Logo Section */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                    cursor: isLoggedIn ? 'default' : 'pointer'
+                }}
+                onClick={() => !isLoggedIn && navigate('/')}
+            >
                 <Box
                     sx={{
                         width: 24,
