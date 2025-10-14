@@ -31,9 +31,8 @@ function NavBar() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                padding: '16px 24px',
+                padding: '12px 24px',
                 backgroundColor: 'white',
-                borderBottom: '1px solid #e0e0e0'
             }}
         >
             {/* Logo Section */}
@@ -55,11 +54,11 @@ function NavBar() {
                     }}
                 />
                 <Typography
-                    variant="h5"
+                    variant="h6"
                     sx={{
                         fontWeight: 'bold',
                         color: 'black',
-                        fontSize: '24px'
+                        fontSize: '18px'
                     }}
                 >
                     Miles
@@ -73,18 +72,19 @@ function NavBar() {
                         variant="contained"
                         onClick={handleLogout}
                         sx={{
-                            backgroundColor: '#f44336',
-                            color: 'white',
+                            backgroundColor: '#000',
+                            color: '#fff',
                             textTransform: 'none',
-                            fontSize: '16px',
+                            fontSize: '14px',
                             fontWeight: 500,
-                            borderRadius: '8px',
+                            borderRadius: '6px',
+                            padding: '6px 20px',
                             '&:hover': {
-                                backgroundColor: '#d32f2f'
+                                backgroundColor: '#333'
                             }
                         }}
                     >
-                        Logout
+                        Log out
                     </Button>
                 ) : (
                     <>
@@ -94,7 +94,7 @@ function NavBar() {
                             sx={{
                                 color: '#666',
                                 textTransform: 'none',
-                                fontSize: '16px',
+                                fontSize: '14px',
                                 fontWeight: 500
                             }}
                         >
@@ -104,12 +104,13 @@ function NavBar() {
                             variant="contained"
                             onClick={() => navigate('/register')}
                             sx={{
-                                backgroundColor: 'black',
-                                color: 'white',
+                                backgroundColor: '#000',
+                                color: '#fff',
                                 textTransform: 'none',
-                                fontSize: '16px',
+                                fontSize: '14px',
                                 fontWeight: 500,
-                                borderRadius: '8px',
+                                borderRadius: '6px',
+                                padding: '6px 20px',
                                 '&:hover': {
                                     backgroundColor: '#333'
                                 }

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CustomerAuthController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StoreController;
+use App\Http\Controllers\Api\PublicStoreController;
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -14,6 +15,9 @@ Route::get('/auth/google/callback', [AuthController::class, 'handleGoogleCallbac
 
 Route::post('/customer/register', [CustomerAuthController::class, 'register']);
 Route::post('/customer/login', [CustomerAuthController::class, 'login']);
+
+// Public routes (no authentication required)
+Route::get('/public/stores/{slug}', [PublicStoreController::class, 'show']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);

@@ -1,105 +1,63 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Container, Button, IconButton } from '@mui/material';
+import { useParams } from 'react-router-dom';
+import { Box, Typography, Container, Button } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import NavBar from '../components/NavBar';
-import AdminBar from '../components/AdminBar';
 import StoreNavBar from '../components/StoreNavBar';
 
-function StoreDashboardPage() {
-    const navigate = useNavigate();
+function PublicStorePage() {
+    const { slug } = useParams();
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const fetchStoreAndProducts = async () => {
-            const token = localStorage.getItem('token');
-
-            if (!token) {
-                navigate('/login');
-                return;
-            }
-
+        const fetchPublicStore = async () => {
             try {
-                // Fetch store
-                const storeResponse = await fetch('http://localhost:8000/api/stores', {
+                const response = await fetch(`http://localhost:8000/api/public/stores/${slug}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Accept': 'application/json'
                     }
                 });
 
-                const storeData = await storeResponse.json();
+                const data = await response.json();
 
-                if (!storeResponse.ok) {
-                    if (storeResponse.status === 404) {
-                        navigate('/store-form');
-                        return;
-                    }
-                    throw new Error(storeData.message || 'Failed to fetch store');
+                if (!response.ok) {
+                    setError(data.message || 'Store not found');
+                    setLoading(false);
+                    return;
                 }
 
-                setStore(storeData);
-
-                // Fetch products
-                const productsResponse = await fetch('http://localhost:8000/api/products', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (productsResponse.ok) {
-                    const productsData = await productsResponse.json();
-                    setProducts(productsData);
-                }
+                setStore(data.store);
+                setProducts(data.products);
             } catch (err) {
-                setError(err.message);
+                setError('Failed to load store. Please try again later.');
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStoreAndProducts();
-    }, [navigate]);
-
-    const handlePublish = async () => {
-        const token = localStorage.getItem('token');
-
-        try {
-            const response = await fetch(`http://localhost:8000/api/stores/${store.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_active: true })
-            });
-
-            if (response.ok) {
-                const publicUrl = `http://localhost:8000/store/${store.store_slug}`;
-                alert(`Store published!\nPublic URL: ${publicUrl}`);
-                setStore({ ...store, is_active: true });
-            }
-        } catch (err) {
-            alert('Failed to publish store');
-        }
-    };
+        fetchPublicStore();
+    }, [slug]);
 
     if (loading) {
-        return <div>Loading...</div>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+                <Typography>Loading...</Typography>
+            </Box>
+        );
     }
 
     if (error) {
-        return <div>Error: {error}</div>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', flexDirection: 'column', gap: 2 }}>
+                <Typography variant="h5" sx={{ color: '#666' }}>{error}</Typography>
+                <Typography variant="body2" sx={{ color: '#999' }}>This store may not be available or published yet.</Typography>
+            </Box>
+        );
     }
 
     if (!store) {
@@ -108,14 +66,8 @@ function StoreDashboardPage() {
 
     return (
         <>
-            {/* Admin Navbar */}
-            <NavBar />
-
-            {/* Admin Bar */}
-            <AdminBar store={store} handlePublish={handlePublish} productCount={products.length} />
-
-            {/* Store Navbar */}
-            <StoreNavBar store={store} />
+            {/* Store Navbar - Public Mode */}
+            <StoreNavBar store={store} isPublic={true} />
 
             {/* Hero Section */}
             <Box
@@ -187,7 +139,7 @@ function StoreDashboardPage() {
 
                         {products.length === 0 ? (
                             <Box sx={{ padding: 6, backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
-                                <Typography sx={{ color: '#666' }}>No products yet. Click "Add Product" to add your first product.</Typography>
+                                <Typography sx={{ color: '#666' }}>No products available at the moment.</Typography>
                             </Box>
                         ) : (
                             <>
@@ -292,7 +244,7 @@ function StoreDashboardPage() {
                                     <Button
                                         startIcon={<ChevronLeftIcon />}
                                         sx={{
-                                            color: '#666',
+                                                color: '#666',
                                             textTransform: 'none',
                                             fontSize: '14px'
                                         }}
@@ -379,4 +331,4 @@ function StoreDashboardPage() {
     );
 }
 
-export default StoreDashboardPage;
+export default PublicStorePage;

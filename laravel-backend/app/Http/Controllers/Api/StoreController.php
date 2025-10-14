@@ -117,6 +117,19 @@ class StoreController extends Controller
             'is_active' => 'boolean',
         ]);
 
+        // Validate publishing requirements
+        if (isset($validated['is_active']) && $validated['is_active'] === true) {
+            // Check if store has at least one active product
+            $activeProductsCount = $store->products()->where('is_active', true)->count();
+
+            if ($activeProductsCount === 0) {
+                return response()->json([
+                    'message' => 'Cannot publish store without any active products. Please add at least one product first.',
+                    'error' => 'no_products'
+                ], 422);
+            }
+        }
+
         // Handle logo upload
         if ($request->hasFile('logo')) {
             // Delete old logo if exists
