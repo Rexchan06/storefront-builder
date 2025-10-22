@@ -2,8 +2,10 @@ import { Button, Box, Typography, TextField, InputAdornment, IconButton } from '
 import SearchIcon from '@mui/icons-material/Search'
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
 import MenuIcon from '@mui/icons-material/Menu'
+import { useNavigate } from 'react-router-dom'
 
-function StoreNavBar({ store }) {
+function StoreNavBar({ store, isPublic = false }) {
+    const navigate = useNavigate()
     return <Box sx={{
         backgroundColor: '#fff',
         padding: '12px 24px',
@@ -70,6 +72,7 @@ function StoreNavBar({ store }) {
             </IconButton>
             <Button
                 variant="contained"
+                onClick={() => isPublic && navigate(`/store/${store.store_slug}/login`)}
                 sx={{
                     backgroundColor: '#000',
                     color: 'white',
@@ -77,6 +80,7 @@ function StoreNavBar({ store }) {
                     fontSize: '14px',
                     borderRadius: '6px',
                     padding: '6px 20px',
+                    cursor: isPublic ? 'pointer' : 'default',
                     '&:hover': {
                         backgroundColor: '#333'
                     }
@@ -86,6 +90,7 @@ function StoreNavBar({ store }) {
             </Button>
             <Button
                 variant="contained"
+                onClick={() => isPublic && navigate(`/store/${store.store_slug}/register`)}
                 sx={{
                     backgroundColor: '#000',
                     color: 'white',
@@ -93,6 +98,7 @@ function StoreNavBar({ store }) {
                     fontSize: '14px',
                     borderRadius: '6px',
                     padding: '6px 20px',
+                    cursor: isPublic ? 'pointer' : 'default',
                     '&:hover': {
                         backgroundColor: '#333'
                     }

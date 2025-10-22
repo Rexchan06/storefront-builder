@@ -12,7 +12,6 @@ function StoreFormPage() {
         contact_email: '',
         contact_phone: '',
         address: '',
-        is_active: true
     });
     const [logoFile, setLogoFile] = useState(null);
     const [logoPreview, setLogoPreview] = useState(null);
@@ -103,7 +102,6 @@ function StoreFormPage() {
             submitData.append('contact_email', formData.contact_email);
             submitData.append('contact_phone', formData.contact_phone);
             submitData.append('address', formData.address);
-            submitData.append('is_active', formData.is_active ? '1' : '0');
 
             // Append logo file if selected
             if (logoFile) {

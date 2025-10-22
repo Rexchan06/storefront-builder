@@ -90,13 +90,33 @@ function ProductFormPage() {
                 body: JSON.stringify({ is_active: true })
             });
 
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (data.error === 'no_products') {
+                    alert('Cannot publish store without any active products. Please add at least one product first.');
+                } else {
+                    alert(data.message || 'Failed to publish store');
+                }
+                return;
+            }
+
             if (response.ok) {
-                const publicUrl = `http://localhost:8000/store/${store.store_slug}`;
-                alert(`Store published!\nPublic URL: ${publicUrl}`);
+                const publicUrl = `http://localhost:3000/store/${store.store_slug}`;
+                const confirmed = window.confirm(
+                    `🎉 Store published successfully!\n\n` +
+                    `Your public store URL:\n${publicUrl}\n\n` +
+                    `Click OK to view your public store, or Cancel to stay here.`
+                );
+
                 setStore({ ...store, is_active: true });
+
+                if (confirmed) {
+                    window.open(publicUrl, '_blank');
+                }
             }
         } catch (err) {
-            alert('Failed to publish store');
+            alert('Failed to publish store. Please try again.');
         }
     };
 
