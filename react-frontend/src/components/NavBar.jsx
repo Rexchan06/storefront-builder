@@ -21,8 +21,7 @@ function NavBar() {
         // Update state
         setIsLoggedIn(false);
 
-        // Redirect to login
-        navigate('/login');
+        navigate('/');
     };
 
     return (

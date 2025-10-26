@@ -117,7 +117,7 @@ function LoginPage() {
                                 fullWidth
                                 name="email"
                                 type="email"
-                                placeholder="enter your email address"
+                                placeholder="Enter your email address"
                                 value={formData.email}
                                 onChange={handleChange}
                                 required
