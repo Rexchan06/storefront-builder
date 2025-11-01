@@ -55,7 +55,7 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user,
             'token' => $token,
-            'token-type' => 'Bearer',
+            'token_type' => 'Bearer',
         ]);
     }
 
@@ -85,7 +85,6 @@ class AuthController extends Controller
                     'name' => $googleUser->name,
                     'email' => $googleUser->email,
                     'google_id' => $googleUser->id,
-                    'email_verified_at' => now(),
                 ]);
             }
 
