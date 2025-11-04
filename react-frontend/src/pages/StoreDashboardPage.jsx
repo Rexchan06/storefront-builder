@@ -169,18 +169,20 @@ function StoreDashboardPage() {
                             sx={{
                                 fontWeight: 'bold',
                                 marginBottom: 2,
-                                fontSize: { xs: '32px', md: '48px' }
+                                fontSize: { xs: '32px', md: '48px' },
+                                color: '#000'
                             }}
                         >
-                            <span style={{ color: '#00bcd4' }}>{store.store_slug?.split(' ')[0] || 'Innovation'}</span>
-                            <span style={{ color: '#000' }}> {store.store_slug?.split(' ').slice(1).join(' ') || 'delivered to your doorstep'}</span>
+                            {store.store_name}
                         </Typography>
                         <Typography
-                            variant="body1"
+                            variant="h5"
                             sx={{
-                                color: '#555',
-                                fontSize: '16px',
-                                lineHeight: 1.6
+                                color: '#00bcd4',
+                                fontSize: { xs: '18px', md: '24px' },
+                                fontWeight: 500,
+                                lineHeight: 1.6,
+                                marginBottom: 2
                             }}
                         >
                             {store.description || 'Your one-stop online shop for the latest gadgets, accessories, and lifestyle products'}

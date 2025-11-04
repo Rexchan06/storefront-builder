@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Typography, Container, Button } from '@mui/material';
+import { Box, Typography, Container, Button, Snackbar, Alert } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import StoreNavBar from '../components/StoreNavBar';
+import { useCart } from '../context/CartContext';
 
 function PublicStorePage() {
     const { slug } = useParams();
+    const { addToCart } = useCart();
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     useEffect(() => {
         const fetchPublicStore = async () => {
@@ -42,6 +45,19 @@ function PublicStorePage() {
 
         fetchPublicStore();
     }, [slug]);
+
+    const handleAddToCart = (product) => {
+        if (product.stock_quantity === 0) {
+            setSnackbar({ open: true, message: 'Product out of stock', severity: 'error' });
+            return;
+        }
+        addToCart(product, slug);
+        setSnackbar({ open: true, message: `${product.name} added to cart!`, severity: 'success' });
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
 
     if (loading) {
         return (
@@ -101,18 +117,20 @@ function PublicStorePage() {
                             sx={{
                                 fontWeight: 'bold',
                                 marginBottom: 2,
-                                fontSize: { xs: '32px', md: '48px' }
+                                fontSize: { xs: '32px', md: '48px' },
+                                color: '#000'
                             }}
                         >
-                            <span style={{ color: '#00bcd4' }}>{store.store_slug?.split(' ')[0] || 'Innovation'}</span>
-                            <span style={{ color: '#000' }}> {store.store_slug?.split(' ').slice(1).join(' ') || 'delivered to your doorstep'}</span>
+                            {store.store_name}
                         </Typography>
                         <Typography
-                            variant="body1"
+                            variant="h5"
                             sx={{
-                                color: '#555',
-                                fontSize: '16px',
-                                lineHeight: 1.6
+                                color: '#00bcd4',
+                                fontSize: { xs: '18px', md: '24px' },
+                                fontWeight: 500,
+                                lineHeight: 1.6,
+                                marginBottom: 2
                             }}
                         >
                             {store.description || 'Your one-stop online shop for the latest gadgets, accessories, and lifestyle products'}
@@ -199,6 +217,8 @@ function PublicStorePage() {
                                                     <Button
                                                         variant="contained"
                                                         size="small"
+                                                        onClick={() => handleAddToCart(product)}
+                                                        disabled={product.stock_quantity === 0}
                                                         sx={{
                                                             backgroundColor: '#000',
                                                             color: 'white',
@@ -217,6 +237,8 @@ function PublicStorePage() {
                                                     <Button
                                                         variant="outlined"
                                                         size="small"
+                                                        onClick={() => handleAddToCart(product)}
+                                                        disabled={product.stock_quantity === 0}
                                                         sx={{
                                                             color: '#000',
                                                             borderColor: '#e0e0e0',
@@ -231,7 +253,7 @@ function PublicStorePage() {
                                                             }
                                                         }}
                                                     >
-                                                        Add to Cart
+                                                        {product.stock_quantity === 0 ? 'Out of Stock' : 'Add to Cart'}
                                                     </Button>
                                                 </Box>
                                             </Box>
@@ -327,6 +349,18 @@ function PublicStorePage() {
                     </Box>
                 </Container>
             </Box>
+
+            {/* Snackbar for notifications */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={3000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </>
     );
 }

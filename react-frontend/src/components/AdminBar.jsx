@@ -54,6 +54,21 @@ function AdminBar({ store, handlePublish, productCount = 0 }) {
             </Button>
             <Button
                 variant="text"
+                onClick={() => navigate('/orders')}
+                sx={{
+                    color: 'white',
+                    textTransform: 'none',
+                    fontSize: '14px',
+                    '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }}
+            >
+                Orders
+            </Button>
+            <Button
+                variant="text"
+                onClick={() => navigate('/analytics')}
                 sx={{
                     color: 'white',
                     textTransform: 'none',

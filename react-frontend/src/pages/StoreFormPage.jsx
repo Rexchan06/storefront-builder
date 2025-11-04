@@ -219,18 +219,18 @@ function StoreFormPage() {
                                 />
 
                                 <Typography variant="caption" sx={labelStyle}>
-                                    Slogan
+                                    Store URL Slug *
                                 </Typography>
                                 <TextField
                                     fullWidth
                                     name="store_slug"
                                     type="text"
-                                    placeholder="Innovation delivered to your doorstep"
+                                    placeholder="trendy-tech-gadgets"
                                     value={formData.store_slug}
                                     onChange={handleChange}
                                     required
                                     error={!!errors.store_slug}
-                                    helperText={errors.store_slug ? errors.store_slug[0] : ''}
+                                    helperText={errors.store_slug ? errors.store_slug[0] : 'This will be used in your store URL (e.g., /store/trendy-tech-gadgets). Use lowercase letters and hyphens only.'}
                                     sx={inputStyle}
                                 />
 
@@ -279,18 +279,18 @@ function StoreFormPage() {
                                 />
 
                                 <Typography variant="caption" sx={labelStyle}>
-                                    Description
+                                    Store Description / Slogan
                                 </Typography>
                                 <TextField
                                     fullWidth
                                     name="description"
                                     multiline
                                     rows={4}
-                                    placeholder="Your one-stop online shop for the latest gadgets, accessories, and lifestyle products."
+                                    placeholder="Innovation delivered to your doorstep. Your one-stop online shop for the latest gadgets, accessories, and lifestyle products."
                                     value={formData.description}
                                     onChange={handleChange}
                                     error={!!errors.description}
-                                    helperText={errors.description ? errors.description[0] : ''}
+                                    helperText={errors.description ? errors.description[0] : 'This will be displayed prominently on your store page as your slogan or description.'}
                                     sx={inputStyle}
                                 />
 

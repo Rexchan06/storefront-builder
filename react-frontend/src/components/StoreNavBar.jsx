@@ -1,11 +1,44 @@
-import { Button, Box, Typography, TextField, InputAdornment, IconButton } from '@mui/material'
+import { useState, useEffect } from 'react'
+import { Button, Box, Typography, TextField, InputAdornment, IconButton, Badge, Menu, MenuItem } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
 import MenuIcon from '@mui/icons-material/Menu'
+import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import { useNavigate } from 'react-router-dom'
+import { useCart } from '../context/CartContext'
 
 function StoreNavBar({ store, isPublic = false }) {
     const navigate = useNavigate()
+    const { getCartItemCount } = useCart()
+    const cartItemCount = getCartItemCount()
+    const [customer, setCustomer] = useState(null)
+    const [anchorEl, setAnchorEl] = useState(null)
+
+    useEffect(() => {
+        // Check if customer is logged in
+        const customerToken = localStorage.getItem('customerToken')
+        const customerData = localStorage.getItem('customer')
+        if (customerToken && customerData) {
+            setCustomer(JSON.parse(customerData))
+        }
+    }, [])
+
+    const handleMenuOpen = (event) => {
+        setAnchorEl(event.currentTarget)
+    }
+
+    const handleMenuClose = () => {
+        setAnchorEl(null)
+    }
+
+    const handleLogout = () => {
+        localStorage.removeItem('customerToken')
+        localStorage.removeItem('customer')
+        setCustomer(null)
+        handleMenuClose()
+        navigate(`/store/${store.store_slug}`)
+    }
+
     return <Box sx={{
         backgroundColor: '#fff',
         padding: '12px 24px',
@@ -65,47 +98,90 @@ function StoreNavBar({ store, isPublic = false }) {
             }}
         />
 
-        {/* Right Section: Cart, Login, Register, Menu */}
+        {/* Right Section: Cart, Login/Account */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <IconButton sx={{ color: '#000' }}>
-                <ShoppingCartIcon />
+            <IconButton
+                sx={{ color: '#000' }}
+                onClick={() => isPublic && navigate(`/store/${store.store_slug}/cart`)}
+            >
+                <Badge badgeContent={cartItemCount} color="primary">
+                    <ShoppingCartIcon />
+                </Badge>
             </IconButton>
-            <Button
-                variant="contained"
-                onClick={() => isPublic && navigate(`/store/${store.store_slug}/login`)}
-                sx={{
-                    backgroundColor: '#000',
-                    color: 'white',
-                    textTransform: 'none',
-                    fontSize: '14px',
-                    borderRadius: '6px',
-                    padding: '6px 20px',
-                    cursor: isPublic ? 'pointer' : 'default',
-                    '&:hover': {
-                        backgroundColor: '#333'
-                    }
-                }}
-            >
-                Login
-            </Button>
-            <Button
-                variant="contained"
-                onClick={() => isPublic && navigate(`/store/${store.store_slug}/register`)}
-                sx={{
-                    backgroundColor: '#000',
-                    color: 'white',
-                    textTransform: 'none',
-                    fontSize: '14px',
-                    borderRadius: '6px',
-                    padding: '6px 20px',
-                    cursor: isPublic ? 'pointer' : 'default',
-                    '&:hover': {
-                        backgroundColor: '#333'
-                    }
-                }}
-            >
-                Register
-            </Button>
+
+            {customer ? (
+                // Show account menu when logged in
+                <>
+                    <Button
+                        variant="outlined"
+                        onClick={handleMenuOpen}
+                        startIcon={<AccountCircleIcon />}
+                        sx={{
+                            borderColor: '#00bcd4',
+                            color: '#00bcd4',
+                            textTransform: 'none',
+                            fontSize: '14px',
+                            borderRadius: '6px',
+                            padding: '6px 16px',
+                            '&:hover': {
+                                borderColor: '#00a5bb',
+                                backgroundColor: 'rgba(0, 188, 212, 0.04)'
+                            }
+                        }}
+                    >
+                        {customer.name}
+                    </Button>
+                    <Menu
+                        anchorEl={anchorEl}
+                        open={Boolean(anchorEl)}
+                        onClose={handleMenuClose}
+                        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                    >
+                        <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                    </Menu>
+                </>
+            ) : (
+                // Show login/register when not logged in
+                <>
+                    <Button
+                        variant="contained"
+                        onClick={() => isPublic && navigate(`/store/${store.store_slug}/login`)}
+                        sx={{
+                            backgroundColor: '#000',
+                            color: 'white',
+                            textTransform: 'none',
+                            fontSize: '14px',
+                            borderRadius: '6px',
+                            padding: '6px 20px',
+                            cursor: isPublic ? 'pointer' : 'default',
+                            '&:hover': {
+                                backgroundColor: '#333'
+                            }
+                        }}
+                    >
+                        Login
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => isPublic && navigate(`/store/${store.store_slug}/register`)}
+                        sx={{
+                            backgroundColor: '#000',
+                            color: 'white',
+                            textTransform: 'none',
+                            fontSize: '14px',
+                            borderRadius: '6px',
+                            padding: '6px 20px',
+                            cursor: isPublic ? 'pointer' : 'default',
+                            '&:hover': {
+                                backgroundColor: '#333'
+                            }
+                        }}
+                    >
+                        Register
+                    </Button>
+                </>
+            )}
             <IconButton sx={{ color: '#000' }}>
                 <MenuIcon />
             </IconButton>
