@@ -1,20 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Paper, Alert, CircularProgress, Divider } from '@mui/material';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import StoreNavBar from '../components/StoreNavBar';
+import LoadingScreen from '../components/LoadingScreen';
 import { useCart } from '../context/CartContext';
-
-// Initialize Stripe
-const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY || 'pk_test_your_key_here');
+import { API_URL } from '../services/api';
 
 function CheckoutForm({ store, cartItems, totalAmount }) {
     const { slug } = useParams();
     const navigate = useNavigate();
     const { clearCart } = useCart();
-    const stripe = useStripe();
-    const elements = useElements();
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -49,22 +44,23 @@ function CheckoutForm({ store, cartItems, totalAmount }) {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-
-        if (!stripe || !elements) {
-            return;
-        }
-
         setLoading(true);
 
         try {
+            const headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            };
+
+            const customerToken = localStorage.getItem('customerToken');
+            if (customerToken) {
+                headers['Authorization'] = `Bearer ${customerToken}`;
+            }
+
             // Step 1: Create order
-            const orderResponse = await fetch('http://localhost:8000/api/customer/orders', {
+            const orderResponse = await fetch(`${API_URL}/api/customer/orders`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('customerToken') || ''}`
-                },
+                headers,
                 body: JSON.stringify({
                     store_id: store.id,
                     customer_name: formData.customer_name,
@@ -88,59 +84,27 @@ function CheckoutForm({ store, cartItems, totalAmount }) {
 
             const order = orderData.order;
 
-            // Step 2: Create payment intent
-            const paymentIntentResponse = await fetch('http://localhost:8000/api/payments/stripe/create-intent', {
+            // Step 2: Create Stripe Checkout Session
+            const checkoutResponse = await fetch(`${API_URL}/api/payments/stripe/create-checkout-session`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('customerToken') || ''}`
-                },
+                headers,
                 body: JSON.stringify({
-                    order_id: order.id,
-                    amount: totalAmount
+                    order_id: order.id
                 })
             });
 
-            const paymentIntentData = await paymentIntentResponse.json();
+            const checkoutData = await checkoutResponse.json();
 
-            if (!paymentIntentResponse.ok) {
-                throw new Error(paymentIntentData.message || 'Failed to create payment intent');
+            if (!checkoutResponse.ok) {
+                throw new Error(checkoutData.message || 'Failed to create checkout session');
             }
 
-            // Step 3: Confirm card payment
-            const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
-                paymentIntentData.client_secret,
-                {
-                    payment_method: {
-                        card: elements.getElement(CardElement),
-                        billing_details: {
-                            name: formData.customer_name,
-                            email: formData.customer_email,
-                            phone: formData.customer_phone,
-                            address: {
-                                line1: formData.customer_address
-                            }
-                        }
-                    }
-                }
-            );
-
-            if (stripeError) {
-                throw new Error(stripeError.message);
-            }
-
-            if (paymentIntent.status === 'succeeded') {
-                // Clear cart
-                clearCart();
-
-                // Navigate to success page
-                navigate(`/store/${slug}/payment-success/${order.id}`);
-            }
+            // Step 3: Redirect to Stripe Checkout
+            clearCart();
+            window.location.href = checkoutData.checkout_url;
 
         } catch (err) {
             setError(err.message || 'Payment failed. Please try again.');
-        } finally {
             setLoading(false);
         }
     };
@@ -216,36 +180,18 @@ function CheckoutForm({ store, cartItems, totalAmount }) {
             <Divider sx={{ marginBottom: 3 }} />
 
             <Typography variant="h5" sx={{ fontWeight: 'bold', marginBottom: 2 }}>
-                Payment Information
+                Payment
             </Typography>
 
-            <Box sx={{
-                padding: 2,
-                border: '1px solid #e0e0e0',
-                borderRadius: '8px',
-                marginBottom: 3
-            }}>
-                <CardElement options={{
-                    style: {
-                        base: {
-                            fontSize: '16px',
-                            color: '#424770',
-                            '::placeholder': {
-                                color: '#aab7c4',
-                            },
-                        },
-                        invalid: {
-                            color: '#9e2146',
-                        },
-                    },
-                }} />
-            </Box>
+            <Typography sx={{ marginBottom: 3 }}>
+                You will be redirected to Stripe to complete your payment securely.
+            </Typography>
 
             <Button
                 type="submit"
                 variant="contained"
                 fullWidth
-                disabled={!stripe || loading}
+                disabled={loading}
                 sx={{
                     backgroundColor: '#00bcd4',
                     color: 'white',
@@ -264,7 +210,7 @@ function CheckoutForm({ store, cartItems, totalAmount }) {
                 {loading ? (
                     <CircularProgress size={24} sx={{ color: 'white' }} />
                 ) : (
-                    `Pay RM${totalAmount.toFixed(2)}`
+                    `Proceed to Pay RM${totalAmount.toFixed(2)}`
                 )}
             </Button>
 
@@ -287,7 +233,7 @@ function CheckoutPage() {
     useEffect(() => {
         const fetchStore = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/public/stores/${slug}`);
+                const response = await fetch(`${API_URL}/api/public/stores/${slug}`);
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);
@@ -306,11 +252,7 @@ function CheckoutPage() {
     const totalAmount = getCartTotal();
 
     if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <CircularProgress />
-            </Box>
-        );
+        return <LoadingScreen />;
     }
 
     if (!store) {
@@ -375,10 +317,7 @@ function CheckoutPage() {
                             </Box>
                         </Box>
 
-                        {/* Checkout Form with Stripe */}
-                        <Elements stripe={stripePromise}>
-                            <CheckoutForm store={store} cartItems={cartItems} totalAmount={totalAmount} />
-                        </Elements>
+                        <CheckoutForm store={store} cartItems={cartItems} totalAmount={totalAmount} />
                     </Paper>
                 </Container>
             </Box>

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Paper, Alert } from '@mui/material';
 import StoreNavBar from '../../components/StoreNavBar';
+import LoadingScreen from '../../components/LoadingScreen';
+import { API_URL, API_STORAGE_URL } from '../../services/api';
 
 function CustomerLoginPage() {
     const { slug } = useParams();
@@ -18,7 +20,7 @@ function CustomerLoginPage() {
     useEffect(() => {
         const fetchStore = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/public/stores/${slug}`);
+                const response = await fetch(`${API_URL}/api/public/stores/${slug}`);
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);
@@ -54,7 +56,7 @@ function CustomerLoginPage() {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/api/customer/login', {
+            const response = await fetch(`${API_URL}/api/customer/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -92,11 +94,7 @@ function CustomerLoginPage() {
     };
 
     if (storeLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <Typography>Loading...</Typography>
-            </Box>
-        );
+        return <LoadingScreen />;
     }
 
     if (!store) {

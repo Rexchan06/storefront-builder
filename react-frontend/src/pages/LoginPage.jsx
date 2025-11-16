@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Paper } from '@mui/material';
 import NavBar from '../components/NavBar';
+import { API_URL } from '../services/api';
 
 function LoginPage() {
     const navigate = useNavigate();
@@ -25,7 +26,7 @@ function LoginPage() {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/api/login', {
+            const response = await fetch(`${API_URL}/api/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -55,7 +56,7 @@ function LoginPage() {
 
     const handleGoogleLogin = () => {
         // Redirect to Laravel Google OAuth endpoint
-        window.location.href = 'http://localhost:8000/api/auth/google';
+        window.location.href = `${API_URL}/api/auth/google`;
     };
 
     return (

@@ -133,7 +133,7 @@ class AnalyticsController extends Controller
                 'products.name',
                 'products.price',
                 DB::raw('SUM(order_items.quantity) as total_quantity'),
-                DB::raw('SUM(order_items.quantity * order_items.price) as total_revenue')
+                DB::raw('SUM(order_items.quantity * order_items.unit_price) as total_revenue')
             )
             ->groupBy('products.id', 'products.name', 'products.price')
             ->orderBy('total_quantity', 'desc')

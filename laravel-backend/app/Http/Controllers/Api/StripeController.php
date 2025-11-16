@@ -6,8 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Stripe\Stripe;
-use Stripe\PaymentIntent;
+use Stripe\Checkout\Session;
 
 class StripeController extends Controller
 {
@@ -18,14 +19,13 @@ class StripeController extends Controller
     }
 
     /**
-     * Create payment intent
-     * POST /api/payments/stripe/create-intent
+     * Create Stripe Checkout Session
+     * POST /api/payments/stripe/create-checkout-session
      */
-    public function createPaymentIntent(Request $request)
+    public function createCheckoutSession(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'order_id' => 'required|exists:orders,id',
-            'amount' => 'required|numeric|min:0.50'
         ]);
 
         if ($validator->fails()) {
@@ -33,38 +33,37 @@ class StripeController extends Controller
         }
 
         try {
-            $order = Order::findOrFail($request->order_id);
+            $order = Order::with('orderItems.product')->findOrFail($request->order_id);
 
-            // Convert amount to smallest currency unit (sen for MYR)
-            $amountInCents = (int) ($request->amount * 100);
-
-            // Minimum amount validation (RM 0.50)
-            if ($amountInCents < 50) {
-                return response()->json([
-                    'message' => 'Amount must be at least RM 0.50'
-                ], 422);
+            $line_items = [];
+            foreach ($order->orderItems as $item) {
+                $line_items[] = [
+                    'price_data' => [
+                        'currency' => 'myr',
+                        'product_data' => [
+                            'name' => $item->product->name,
+                        ],
+                        'unit_amount' => (int) ($item->unit_price * 100),
+                    ],
+                    'quantity' => $item->quantity,
+                ];
             }
 
-            // Create payment intent
-            $paymentIntent = PaymentIntent::create([
-                'amount' => $amountInCents,
-                'currency' => 'myr',
+            $checkout_session = Session::create([
                 'payment_method_types' => ['card', 'fpx'],
+                'line_items' => $line_items,
+                'mode' => 'payment',
+                'success_url' => env('FRONTEND_URL') . '/store/' . $order->store->store_slug . '/payment-success/' . $order->id,
+                'cancel_url' => env('FRONTEND_URL') . '/store/' . $order->store->store_slug . '/payment-failed',
                 'metadata' => [
                     'order_id' => $order->id,
-                    'order_number' => $order->order_number,
-                    'customer_email' => $order->customer_email,
-                    'customer_name' => $order->customer_name
-                ],
-                'description' => "Order {$order->order_number}"
+                ]
             ]);
 
-            return response()->json([
-                'client_secret' => $paymentIntent->client_secret,
-                'payment_intent_id' => $paymentIntent->id,
-                'amount' => $request->amount,
-                'currency' => 'MYR'
-            ]);
+            $order->payment_reference = $checkout_session->id;
+            $order->save();
+
+            return response()->json(['checkout_url' => $checkout_session->url]);
 
         } catch (\Stripe\Exception\ApiErrorException $e) {
             return response()->json([
@@ -73,20 +72,19 @@ class StripeController extends Controller
             ], 500);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Failed to create payment intent',
+                'message' => 'Failed to create checkout session',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Confirm payment
-     * POST /api/payments/stripe/confirm
+     * Verify and complete order after successful payment (after redirect from Stripe)
+     * POST /api/payments/stripe/verify-payment
      */
-    public function confirmPayment(Request $request)
+    public function verifyPayment(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'payment_intent_id' => 'required|string',
             'order_id' => 'required|exists:orders,id'
         ]);
 
@@ -95,28 +93,38 @@ class StripeController extends Controller
         }
 
         try {
-            // Retrieve payment intent from Stripe
-            $paymentIntent = PaymentIntent::retrieve($request->payment_intent_id);
+            $order = Order::with('orderItems')->findOrFail($request->order_id);
 
-            // Check payment status
-            if ($paymentIntent->status === 'succeeded') {
-                $order = Order::findOrFail($request->order_id);
+            // If already paid, just return success
+            if ($order->status === 'paid') {
+                return response()->json([
+                    'message' => 'Order already verified',
+                    'order' => $order
+                ]);
+            }
 
-                // Update order status to paid
+            // Retrieve the checkout session from Stripe
+            if (!$order->payment_reference) {
+                return response()->json(['message' => 'No payment reference found'], 400);
+            }
+
+            $session = \Stripe\Checkout\Session::retrieve($order->payment_reference);
+
+            // Check if payment was successful
+            if ($session->payment_status === 'paid') {
+                // Update order status (stock reduction is handled by webhook)
                 $order->status = 'paid';
-                $order->payment_reference = $paymentIntent->id;
                 $order->save();
 
                 return response()->json([
-                    'message' => 'Payment confirmed successfully',
-                    'order' => $order->load('orderItems.product'),
-                    'payment_status' => $paymentIntent->status
+                    'message' => 'Payment verified successfully',
+                    'order' => $order->fresh()
                 ]);
             }
 
             return response()->json([
-                'message' => 'Payment not successful',
-                'payment_status' => $paymentIntent->status
+                'message' => 'Payment not completed',
+                'payment_status' => $session->payment_status
             ], 400);
 
         } catch (\Stripe\Exception\ApiErrorException $e) {
@@ -126,47 +134,10 @@ class StripeController extends Controller
             ], 500);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Failed to confirm payment',
+                'message' => 'Failed to verify payment',
                 'error' => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Check payment status
-     * GET /api/payments/{reference}/status
-     */
-    public function checkPaymentStatus($reference)
-    {
-        try {
-            $order = Order::where('payment_reference', $reference)->first();
-
-            if (!$order) {
-                return response()->json(['message' => 'Order not found'], 404);
-            }
-
-            // Retrieve payment intent from Stripe
-            $paymentIntent = PaymentIntent::retrieve($reference);
-
-            return response()->json([
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'order_status' => $order->status,
-                'payment_status' => $paymentIntent->status,
-                'amount' => $paymentIntent->amount / 100,
-                'currency' => strtoupper($paymentIntent->currency)
-            ]);
-
-        } catch (\Stripe\Exception\ApiErrorException $e) {
-            return response()->json([
-                'message' => 'Stripe API error',
-                'error' => $e->getMessage()
-            ], 500);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to check payment status',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
 }

@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Paper } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import NavBar from '../components/NavBar';
 import AdminBar from '../components/AdminBar';
+import LoadingScreen from '../components/LoadingScreen';
+import PublishStoreDialog from '../components/PublishStoreDialog';
+import { API_URL, API_STORAGE_URL } from '../services/api';
 
 function ProductFormPage() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const productId = location.state?.productId;
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
     const [formData, setFormData] = useState({
@@ -21,6 +26,8 @@ function ProductFormPage() {
     const [imagePreview, setImagePreview] = useState(null);
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const [existingImage, setExistingImage] = useState(null);
+    const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
     useEffect(() => {
         const fetchStoreAndProducts = async () => {
@@ -33,7 +40,7 @@ function ProductFormPage() {
 
             try {
                 // Fetch store
-                const storeResponse = await fetch('http://localhost:8000/api/stores', {
+                const storeResponse = await fetch(`${API_URL}/api/stores`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -55,7 +62,7 @@ function ProductFormPage() {
                 setStore(storeData);
 
                 // Fetch products
-                const productsResponse = await fetch('http://localhost:8000/api/products', {
+                const productsResponse = await fetch(`${API_URL}/api/products`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -68,56 +75,48 @@ function ProductFormPage() {
                     const productsData = await productsResponse.json();
                     setProducts(productsData);
                 }
+
+                // If editing, fetch product details
+                if (productId) {
+                    const productResponse = await fetch(`${API_URL}/api/products/${productId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (productResponse.ok) {
+                        const productData = await productResponse.json();
+                        setFormData({
+                            name: productData.name,
+                            category: productData.category || '',
+                            description: productData.description || '',
+                            price: productData.price,
+                            stock_quantity: productData.stock_quantity,
+                            is_active: productData.is_active
+                        });
+                        if (productData.image) {
+                            setExistingImage(productData.image);
+                            setImagePreview(`${API_STORAGE_URL}/${productData.image}`);
+                        }
+                    }
+                }
             } catch (err) {
                 console.error('Error fetching store:', err);
             }
         };
 
         fetchStoreAndProducts();
-    }, [navigate]);
+    }, [navigate, productId]);
 
-    const handlePublish = async () => {
-        const token = localStorage.getItem('token');
+    const handlePublishClick = () => {
+        setPublishDialogOpen(true);
+    };
 
-        try {
-            const response = await fetch(`http://localhost:8000/api/stores/${store.id}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_active: true })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                if (data.error === 'no_products') {
-                    alert('Cannot publish store without any active products. Please add at least one product first.');
-                } else {
-                    alert(data.message || 'Failed to publish store');
-                }
-                return;
-            }
-
-            if (response.ok) {
-                const publicUrl = `http://localhost:3000/store/${store.store_slug}`;
-                const confirmed = window.confirm(
-                    `🎉 Store published successfully!\n\n` +
-                    `Your public store URL:\n${publicUrl}\n\n` +
-                    `Click OK to view your public store, or Cancel to stay here.`
-                );
-
-                setStore({ ...store, is_active: true });
-
-                if (confirmed) {
-                    window.open(publicUrl, '_blank');
-                }
-            }
-        } catch (err) {
-            alert('Failed to publish store. Please try again.');
-        }
+    const handlePublishSuccess = (updatedStore) => {
+        setStore(updatedStore);
+        setPublishDialogOpen(false);
     };
 
     const handleChange = (e) => {
@@ -175,8 +174,17 @@ function ProductFormPage() {
                 submitData.append('image', imageFile);
             }
 
-            const response = await fetch('http://localhost:8000/api/products', {
-                method: 'POST',
+            // For PUT requests, we need to use _method workaround for Laravel
+            if (productId) {
+                submitData.append('_method', 'PUT');
+            }
+
+            const url = productId
+                ? `${API_URL}/api/products/${productId}`
+                : `${API_URL}/api/products`;
+
+            const response = await fetch(url, {
+                method: 'POST', // Always POST, Laravel will read _method for PUT
                 headers: {
                     'Accept': 'application/json',
                     'Authorization': `Bearer ${token}`
@@ -191,7 +199,7 @@ function ProductFormPage() {
                 if (data.errors) {
                     setErrors(data.errors);
                 } else {
-                    setErrors({ general: data.message || 'Product creation failed' });
+                    setErrors({ general: data.message || (productId ? 'Product update failed' : 'Product creation failed') });
                 }
                 return;
             }
@@ -223,13 +231,13 @@ function ProductFormPage() {
     };
 
     if (!store) {
-        return <div>Loading...</div>;
+        return <LoadingScreen />;
     }
 
     return (
         <>
             <NavBar />
-            <AdminBar store={store} handlePublish={handlePublish} productCount={products.length} />
+            <AdminBar store={store} handlePublish={handlePublishClick} productCount={products.length} />
             <Box
                 sx={{
                     backgroundColor: '#b3d9f2',
@@ -259,8 +267,8 @@ function ProductFormPage() {
                                 textAlign: 'center'
                             }}
                         >
-                            <span style={{ color: '#000' }}>Add </span>
-                            <span style={{ color: '#f44336' }}>Products</span>
+                            <span style={{ color: '#000' }}>{productId ? 'Edit' : 'Add'} </span>
+                            <span style={{ color: '#f44336' }}>{productId ? 'Product' : 'Products'}</span>
                         </Typography>
 
                         <Box component="form" onSubmit={handleSubmit}>
@@ -460,13 +468,21 @@ function ProductFormPage() {
                                         }
                                     }}
                                 >
-                                    {loading ? 'Adding...' : 'Add'}
+                                    {loading ? (productId ? 'Updating...' : 'Adding...') : (productId ? 'Update' : 'Add')}
                                 </Button>
                             </Box>
                         </Box>
                     </Paper>
                 </Container>
             </Box>
+
+            {/* Publish Store Dialog */}
+            <PublishStoreDialog
+                open={publishDialogOpen}
+                onClose={() => setPublishDialogOpen(false)}
+                store={store}
+                onSuccess={handlePublishSuccess}
+            />
         </>
     );
 }

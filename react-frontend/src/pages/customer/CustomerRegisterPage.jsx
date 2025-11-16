@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Paper, Alert } from '@mui/material';
 import StoreNavBar from '../../components/StoreNavBar';
+import LoadingScreen from '../../components/LoadingScreen';
+import { API_URL, API_STORAGE_URL } from '../../services/api';
 
 function CustomerRegisterPage() {
     const { slug } = useParams();
@@ -12,7 +14,8 @@ function CustomerRegisterPage() {
         email: '',
         password: '',
         password_confirmation: '',
-        phone: ''
+        phone: '',
+        address: ''
     });
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
@@ -21,7 +24,7 @@ function CustomerRegisterPage() {
     useEffect(() => {
         const fetchStore = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/public/stores/${slug}`);
+                const response = await fetch(`${API_URL}/api/public/stores/${slug}`);
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);
@@ -64,7 +67,7 @@ function CustomerRegisterPage() {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8000/api/customer/register', {
+            const response = await fetch(`${API_URL}/api/customer/register`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -76,7 +79,8 @@ function CustomerRegisterPage() {
                     email: formData.email,
                     password: formData.password,
                     password_confirmation: formData.password_confirmation,
-                    phone: formData.phone
+                    phone: formData.phone,
+                    address: formData.address
                 })
             });
 
@@ -105,11 +109,7 @@ function CustomerRegisterPage() {
     };
 
     if (storeLoading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <Typography>Loading...</Typography>
-            </Box>
-        );
+        return <LoadingScreen />;
     }
 
     if (!store) {
@@ -169,14 +169,30 @@ function CustomerRegisterPage() {
 
                             <TextField
                                 fullWidth
-                                label="Phone Number (Optional)"
+                                label="Phone Number"
                                 name="phone"
                                 type="tel"
                                 placeholder="+60123456789"
                                 value={formData.phone}
                                 onChange={handleChange}
+                                required
                                 error={!!errors.phone}
                                 helperText={errors.phone ? errors.phone[0] : ''}
+                                sx={{ marginBottom: 3 }}
+                            />
+
+                            <TextField
+                                fullWidth
+                                label="Address"
+                                name="address"
+                                multiline
+                                rows={3}
+                                placeholder="Enter your full delivery address"
+                                value={formData.address}
+                                onChange={handleChange}
+                                required
+                                error={!!errors.address}
+                                helperText={errors.address ? errors.address[0] : ''}
                                 sx={{ marginBottom: 3 }}
                             />
 

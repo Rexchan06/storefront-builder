@@ -10,7 +10,6 @@ use App\Http\Controllers\Api\PublicStoreController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\CustomerOrderController;
 use App\Http\Controllers\Api\StripeController;
-use App\Http\Controllers\Api\StripeWebhookController;
 use App\Http\Controllers\Api\AnalyticsController;
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -23,9 +22,14 @@ Route::post('/customer/login', [CustomerAuthController::class, 'login']);
 
 // Public routes (no authentication required)
 Route::get('/public/stores/{slug}', [PublicStoreController::class, 'show']);
+Route::get('/public/stores/{slug}/categories', [PublicStoreController::class, 'getCategories']);
+Route::post('/customer/orders', [CustomerOrderController::class, 'store']);
+Route::post('/payments/stripe/create-checkout-session', [StripeController::class, 'createCheckoutSession']);
+Route::post('/payments/stripe/verify-payment', [StripeController::class, 'verifyPayment']);
+Route::get('/public/orders/{id}', [CustomerOrderController::class, 'showPublic']);
 
 // Stripe webhook (no authentication - verified by signature)
-Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handleWebhook']);
+Route::post('/webhooks/stripe', [\App\Http\Controllers\Api\StripeWebhookController::class, 'handleWebhook']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('logout', [AuthController::class, 'logout']);
@@ -57,15 +61,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/orders/{id}', [OrderController::class, 'destroy']);
 
     // Order Management - Customer routes
-    Route::post('/customer/orders', [CustomerOrderController::class, 'store']);
     Route::get('/customer/orders', [CustomerOrderController::class, 'index']);
     Route::get('/customer/orders/{id}', [CustomerOrderController::class, 'show']);
     Route::put('/customer/orders/{id}/cancel', [CustomerOrderController::class, 'cancel']);
-
-    // Stripe Payment routes
-    Route::post('/payments/stripe/create-intent', [StripeController::class, 'createPaymentIntent']);
-    Route::post('/payments/stripe/confirm', [StripeController::class, 'confirmPayment']);
-    Route::get('/payments/{reference}/status', [StripeController::class, 'checkPaymentStatus']);
 
     // Analytics routes - Store Owner only
     Route::get('/analytics/dashboard', [AnalyticsController::class, 'getDashboardData']);

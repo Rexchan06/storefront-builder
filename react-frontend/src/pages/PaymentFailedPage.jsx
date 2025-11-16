@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Typography, Container, Paper, Button, CircularProgress } from '@mui/material';
 import ErrorIcon from '@mui/icons-material/Error';
 import StoreNavBar from '../components/StoreNavBar';
+import { API_URL } from '../services/api';
 
 function PaymentFailedPage() {
     const { slug } = useParams();
@@ -13,7 +14,7 @@ function PaymentFailedPage() {
     useEffect(() => {
         const fetchStore = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/public/stores/${slug}`);
+                const response = await fetch(`${API_URL}/api/public/stores/${slug}`);
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);

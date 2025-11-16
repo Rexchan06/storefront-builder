@@ -32,7 +32,7 @@ export const CartProvider = ({ children }) => {
           items: [{
             productId: product.id,
             name: product.name,
-            price: product.price,
+            price: parseFloat(product.price || '0'),
             quantity: 1,
             image: product.image,
             stock: product.stock_quantity,
@@ -68,7 +68,7 @@ export const CartProvider = ({ children }) => {
           {
             productId: product.id,
             name: product.name,
-            price: product.price,
+            price: parseFloat(product.price || '0'),
             quantity: 1,
             image: product.image,
             stock: product.stock_quantity,
@@ -118,7 +118,7 @@ export const CartProvider = ({ children }) => {
   // Get cart total
   const getCartTotal = () => {
     return cart.items.reduce((total, item) => {
-      return total + item.price * item.quantity;
+      return total + (parseFloat(item.price) || 0) * item.quantity;
     }, 0);
   };
 

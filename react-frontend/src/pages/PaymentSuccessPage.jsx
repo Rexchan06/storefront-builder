@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Box, Typography, Container, Paper, Button, CircularProgress, Divider } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StoreNavBar from '../components/StoreNavBar';
+import LoadingScreen from '../components/LoadingScreen';
+import { API_URL } from '../services/api';
 
 function PaymentSuccessPage() {
     const { slug, orderId } = useParams();
@@ -10,29 +12,47 @@ function PaymentSuccessPage() {
     const [store, setStore] = useState(null);
     const [order, setOrder] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     useEffect(() => {
+        // Check if customer is logged in
+        const customerToken = localStorage.getItem('customerToken');
+        setIsLoggedIn(!!customerToken);
+
         const fetchData = async () => {
             try {
                 // Fetch store
-                const storeResponse = await fetch(`http://localhost:8000/api/public/stores/${slug}`);
+                const storeResponse = await fetch(`${API_URL}/api/public/stores/${slug}`);
                 const storeData = await storeResponse.json();
                 if (storeResponse.ok) {
                     setStore(storeData.store);
                 }
 
-                // Fetch order details
-                const customerToken = localStorage.getItem('customerToken');
-                if (customerToken && orderId) {
-                    const orderResponse = await fetch(`http://localhost:8000/api/customer/orders/${orderId}`, {
+                // Verify payment and update order status
+                if (orderId) {
+                    const verifyResponse = await fetch(`${API_URL}/api/payments/stripe/verify-payment`, {
+                        method: 'POST',
                         headers: {
-                            'Authorization': `Bearer ${customerToken}`,
+                            'Content-Type': 'application/json',
                             'Accept': 'application/json'
-                        }
+                        },
+                        body: JSON.stringify({ order_id: orderId })
                     });
-                    const orderData = await orderResponse.json();
-                    if (orderResponse.ok) {
-                        setOrder(orderData);
+
+                    if (verifyResponse.ok) {
+                        const verifyData = await verifyResponse.json();
+                        setOrder(verifyData.order);
+                    } else {
+                        // If verification fails, still fetch order details
+                        const orderResponse = await fetch(`${API_URL}/api/public/orders/${orderId}`, {
+                            headers: {
+                                'Accept': 'application/json'
+                            }
+                        });
+                        const orderData = await orderResponse.json();
+                        if (orderResponse.ok) {
+                            setOrder(orderData);
+                        }
                     }
                 }
             } catch (err) {
@@ -46,11 +66,7 @@ function PaymentSuccessPage() {
     }, [slug, orderId]);
 
     if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <CircularProgress />
-            </Box>
-        );
+        return <LoadingScreen message="Processing payment..." />;
     }
 
     if (!store) {
@@ -110,7 +126,7 @@ function PaymentSuccessPage() {
                                 {order.order_items && order.order_items.map((item) => (
                                     <Box key={item.id} sx={{ display: 'flex', justifyContent: 'space-between', marginBottom: 1 }}>
                                         <Typography>{item.product_name} x {item.quantity}</Typography>
-                                        <Typography fontWeight="bold">RM{item.total_price}</Typography>
+                                        <Typography fontWeight="bold">RM{parseFloat(item.total_price).toFixed(2)}</Typography>
                                     </Box>
                                 ))}
 
@@ -119,15 +135,15 @@ function PaymentSuccessPage() {
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Typography variant="h6" fontWeight="bold">Total Amount</Typography>
                                     <Typography variant="h6" fontWeight="bold" color="primary">
-                                        RM{order.total_amount}
+                                        RM{parseFloat(order.total_amount).toFixed(2)}
                                     </Typography>
                                 </Box>
                             </Box>
                         )}
 
-                        <Typography variant="body2" sx={{ color: '#666', marginBottom: 3 }}>
+                        {/* <Typography variant="body2" sx={{ color: '#666', marginBottom: 3 }}>
                             A confirmation email has been sent to <strong>{order?.customer_email}</strong>
-                        </Typography>
+                        </Typography> */}
 
                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
                             <Button
@@ -146,11 +162,11 @@ function PaymentSuccessPage() {
                                 Continue Shopping
                             </Button>
 
-                            {order && (
+                            {order && isLoggedIn && (
                                 <Button
                                     variant="outlined"
                                     component={Link}
-                                    to={`/store/${slug}`}
+                                    to={`/store/${slug}/orders`}
                                     sx={{
                                         borderColor: '#00bcd4',
                                         color: '#00bcd4',

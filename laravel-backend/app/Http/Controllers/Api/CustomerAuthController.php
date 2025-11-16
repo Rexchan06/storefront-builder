@@ -37,7 +37,7 @@ class CustomerAuthController extends Controller
             'store_id' => $request->store_id,
             'name' => $request->name,
             'email' => $request->email,
-            'password' => $request->password,
+            'password' => Hash::make($request->password),
             'phone' => $request->phone,
             'address' => $request->address,
         ]);

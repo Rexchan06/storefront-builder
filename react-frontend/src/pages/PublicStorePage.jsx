@@ -1,50 +1,139 @@
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Box, Typography, Container, Button, Snackbar, Alert } from '@mui/material';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+    Box, Typography, Container, Button, Snackbar, Alert, TextField,
+    Drawer, IconButton, Slider, FormControl, InputLabel, Select,
+    MenuItem, Badge, Chip, InputAdornment, CircularProgress
+} from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import SearchIcon from '@mui/icons-material/Search';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import CloseIcon from '@mui/icons-material/Close';
+import ClearIcon from '@mui/icons-material/Clear';
 import StoreNavBar from '../components/StoreNavBar';
+import LoadingScreen from '../components/LoadingScreen';
 import { useCart } from '../context/CartContext';
+import { API_URL, API_STORAGE_URL, buildQueryString } from '../services/api';
 
 function PublicStorePage() {
     const { slug } = useParams();
+    const navigate = useNavigate();
     const { addToCart } = useCart();
+
+    // Core state
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
+    // Search & Filter state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [categories, setCategories] = useState([]);
+    const [filters, setFilters] = useState({
+        category: '',
+        priceMin: 0,
+        priceMax: 10000,
+        sort: 'newest'
+    });
+    const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pagination, setPagination] = useState({
+        current_page: 1,
+        last_page: 1,
+        per_page: 8,
+        total: 0
+    });
+
+    // Debounce search input
     useEffect(() => {
-        const fetchPublicStore = async () => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+            setCurrentPage(1); // Reset to first page on new search
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
+
+    // Fetch categories for filter dropdown
+    useEffect(() => {
+        const fetchCategories = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/public/stores/${slug}`, {
-                    method: 'GET',
+                const response = await fetch(`${API_URL}/api/public/stores/${slug}/categories`, {
                     headers: {
                         'Content-Type': 'application/json',
                         'Accept': 'application/json'
                     }
                 });
-
                 const data = await response.json();
-
-                if (!response.ok) {
-                    setError(data.message || 'Store not found');
-                    setLoading(false);
-                    return;
+                if (response.ok) {
+                    setCategories(data.categories || []);
                 }
-
-                setStore(data.store);
-                setProducts(data.products);
             } catch (err) {
-                setError('Failed to load store. Please try again later.');
-            } finally {
-                setLoading(false);
+                console.error('Failed to fetch categories:', err);
             }
         };
 
-        fetchPublicStore();
+        if (slug) {
+            fetchCategories();
+        }
     }, [slug]);
+
+    // Fetch store and products with filters
+    const fetchPublicStore = useCallback(async () => {
+        try {
+            setLoading(true);
+
+            // Build query parameters
+            const params = {
+                page: currentPage,
+                per_page: 8,
+                ...(debouncedSearch && { search: debouncedSearch }),
+                ...(filters.category && { category: filters.category }),
+                ...(filters.priceMin > 0 && { price_min: filters.priceMin }),
+                ...(filters.priceMax < 10000 && { price_max: filters.priceMax }),
+                sort: filters.sort
+            };
+
+            const queryString = buildQueryString(params);
+            const response = await fetch(`${API_URL}/api/public/stores/${slug}${queryString}`, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setError(data.message || 'Store not found');
+                setLoading(false);
+                return;
+            }
+
+            setStore(data.store);
+            setProducts(data.products || []);
+            setPagination(data.pagination || {
+                current_page: 1,
+                last_page: 1,
+                per_page: 8,
+                total: 0
+            });
+        } catch (err) {
+            setError('Failed to load store. Please try again later.');
+        } finally {
+            setLoading(false);
+        }
+    }, [slug, currentPage, debouncedSearch, filters]);
+
+    useEffect(() => {
+        fetchPublicStore();
+    }, [fetchPublicStore]);
 
     const handleAddToCart = (product) => {
         if (product.stock_quantity === 0) {
@@ -55,16 +144,76 @@ function PublicStorePage() {
         setSnackbar({ open: true, message: `${product.name} added to cart!`, severity: 'success' });
     };
 
+    const handleBuyNow = (product) => {
+        if (product.stock_quantity === 0) {
+            setSnackbar({ open: true, message: 'Product out of stock', severity: 'error' });
+            return;
+        }
+        addToCart(product, slug);
+        navigate(`/store/${slug}/checkout`);
+    };
+
     const handleCloseSnackbar = () => {
         setSnackbar({ ...snackbar, open: false });
     };
 
+    // Search handlers
+    const handleSearchChange = (e) => {
+        setSearchQuery(e.target.value);
+    };
+
+    const handleClearSearch = () => {
+        setSearchQuery('');
+        setDebouncedSearch('');
+    };
+
+    // Filter handlers
+    const handleFilterChange = (filterName, value) => {
+        setFilters(prev => ({ ...prev, [filterName]: value }));
+        setCurrentPage(1); // Reset to first page when filters change
+    };
+
+    const handleClearFilters = () => {
+        setFilters({
+            category: '',
+            priceMin: 0,
+            priceMax: 10000,
+            sort: 'newest'
+        });
+        setCurrentPage(1);
+    };
+
+    const handleApplyFilters = () => {
+        setFilterDrawerOpen(false);
+    };
+
+    // Pagination handlers
+    const handlePrevPage = () => {
+        if (currentPage > 1) {
+            setCurrentPage(prev => prev - 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    const handleNextPage = () => {
+        if (currentPage < pagination.last_page) {
+            setCurrentPage(prev => prev + 1);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    };
+
+    // Count active filters
+    const getActiveFilterCount = () => {
+        let count = 0;
+        if (filters.category) count++;
+        if (filters.priceMin > 0) count++;
+        if (filters.priceMax < 10000) count++;
+        if (filters.sort !== 'newest') count++;
+        return count;
+    };
+
     if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <Typography>Loading...</Typography>
-            </Box>
-        );
+        return <LoadingScreen />;
     }
 
     if (error) {
@@ -89,7 +238,7 @@ function PublicStorePage() {
             <Box
                 sx={{
                     backgroundImage: store.background_image
-                        ? `url(http://localhost:8000/storage/${store.background_image})`
+                        ? `url(${API_STORAGE_URL}/${store.background_image})`
                         : 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
@@ -147,7 +296,7 @@ function PublicStorePage() {
                             variant="h4"
                             sx={{
                                 textAlign: 'center',
-                                marginBottom: 4,
+                                marginBottom: 3,
                                 fontWeight: 'bold'
                             }}
                         >
@@ -155,7 +304,88 @@ function PublicStorePage() {
                             <span style={{ color: '#00bcd4' }}>Products</span>
                         </Typography>
 
-                        {products.length === 0 ? (
+                        {/* Search and Filter Controls */}
+                        <Box sx={{ display: 'flex', gap: 2, marginBottom: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {/* Search Bar */}
+                            <TextField
+                                placeholder="Search products..."
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                sx={{ flex: 1, minWidth: '250px' }}
+                                size="small"
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <SearchIcon sx={{ color: '#666' }} />
+                                        </InputAdornment>
+                                    ),
+                                    endAdornment: searchQuery && (
+                                        <InputAdornment position="end">
+                                            <IconButton size="small" onClick={handleClearSearch}>
+                                                <ClearIcon fontSize="small" />
+                                            </IconButton>
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+
+                            {/* Filter Button */}
+                            <Badge badgeContent={getActiveFilterCount()} color="primary">
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<FilterListIcon />}
+                                    onClick={() => setFilterDrawerOpen(true)}
+                                    sx={{
+                                        color: '#000',
+                                        borderColor: '#e0e0e0',
+                                        textTransform: 'none',
+                                        '&:hover': {
+                                            borderColor: '#00bcd4',
+                                            backgroundColor: 'rgba(0, 188, 212, 0.04)'
+                                        }
+                                    }}
+                                >
+                                    Filters
+                                </Button>
+                            </Badge>
+
+                            {/* Active Filters Chips */}
+                            {filters.category && (
+                                <Chip
+                                    label={`Category: ${filters.category}`}
+                                    onDelete={() => handleFilterChange('category', '')}
+                                    size="small"
+                                    sx={{ backgroundColor: '#e3f2fd' }}
+                                />
+                            )}
+                            {(filters.priceMin > 0 || filters.priceMax < 10000) && (
+                                <Chip
+                                    label={`Price: RM${filters.priceMin} - RM${filters.priceMax}`}
+                                    onDelete={() => {
+                                        handleFilterChange('priceMin', 0);
+                                        handleFilterChange('priceMax', 10000);
+                                    }}
+                                    size="small"
+                                    sx={{ backgroundColor: '#e3f2fd' }}
+                                />
+                            )}
+                        </Box>
+
+                        {/* Results Summary */}
+                        {(debouncedSearch || getActiveFilterCount() > 0) && (
+                            <Box sx={{ marginBottom: 2 }}>
+                                <Typography variant="body2" sx={{ color: '#666' }}>
+                                    {pagination.total} {pagination.total === 1 ? 'result' : 'results'} found
+                                    {debouncedSearch && ` for "${debouncedSearch}"`}
+                                </Typography>
+                            </Box>
+                        )}
+
+                        {loading ? (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', padding: 6 }}>
+                                <CircularProgress />
+                            </Box>
+                        ) : products.length === 0 ? (
                             <Box sx={{ padding: 6, backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
                                 <Typography sx={{ color: '#666' }}>No products available at the moment.</Typography>
                             </Box>
@@ -191,7 +421,7 @@ function PublicStorePage() {
                                             >
                                                 {product.image ? (
                                                     <img
-                                                        src={`http://localhost:8000/storage/${product.image}`}
+                                                        src={`${API_STORAGE_URL}/${product.image}`}
                                                         alt={product.name}
                                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                     />
@@ -217,7 +447,7 @@ function PublicStorePage() {
                                                     <Button
                                                         variant="contained"
                                                         size="small"
-                                                        onClick={() => handleAddToCart(product)}
+                                                        onClick={() => handleBuyNow(product)}
                                                         disabled={product.stock_quantity === 0}
                                                         sx={{
                                                             backgroundColor: '#000',
@@ -262,31 +492,43 @@ function PublicStorePage() {
                                 </Box>
 
                                 {/* Pagination */}
-                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, marginTop: 3 }}>
-                                    <Button
-                                        startIcon={<ChevronLeftIcon />}
-                                        sx={{
-                                                color: '#666',
-                                            textTransform: 'none',
-                                            fontSize: '14px'
-                                        }}
-                                    >
-                                        Back
-                                    </Button>
-                                    <Typography sx={{ fontSize: '14px', color: '#666' }}>
-                                        1 of 5
-                                    </Typography>
-                                    <Button
-                                        endIcon={<ChevronRightIcon />}
-                                        sx={{
-                                            color: '#666',
-                                            textTransform: 'none',
-                                            fontSize: '14px'
-                                        }}
-                                    >
-                                        Next
-                                    </Button>
-                                </Box>
+                                {pagination.last_page > 1 && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, marginTop: 3 }}>
+                                        <Button
+                                            startIcon={<ChevronLeftIcon />}
+                                            onClick={handlePrevPage}
+                                            disabled={currentPage === 1}
+                                            sx={{
+                                                color: currentPage === 1 ? '#ccc' : '#666',
+                                                textTransform: 'none',
+                                                fontSize: '14px',
+                                                '&:hover': {
+                                                    backgroundColor: currentPage === 1 ? 'transparent' : 'rgba(0, 0, 0, 0.04)'
+                                                }
+                                            }}
+                                        >
+                                            Back
+                                        </Button>
+                                        <Typography sx={{ fontSize: '14px', color: '#666' }}>
+                                            {pagination.current_page} of {pagination.last_page}
+                                        </Typography>
+                                        <Button
+                                            endIcon={<ChevronRightIcon />}
+                                            onClick={handleNextPage}
+                                            disabled={currentPage === pagination.last_page}
+                                            sx={{
+                                                color: currentPage === pagination.last_page ? '#ccc' : '#666',
+                                                textTransform: 'none',
+                                                fontSize: '14px',
+                                                '&:hover': {
+                                                    backgroundColor: currentPage === pagination.last_page ? 'transparent' : 'rgba(0, 0, 0, 0.04)'
+                                                }
+                                            }}
+                                        >
+                                            Next
+                                        </Button>
+                                    </Box>
+                                )}
                             </>
                         )}
                     </Box>
@@ -302,7 +544,7 @@ function PublicStorePage() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                 {store.logo ? (
                                     <img
-                                        src={`http://localhost:8000/storage/${store.logo}`}
+                                        src={`${API_STORAGE_URL}/${store.logo}`}
                                         alt={store.store_name}
                                         style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '50%', filter: 'brightness(0) invert(1)' }}
                                     />
@@ -361,6 +603,129 @@ function PublicStorePage() {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            {/* Filter Drawer */}
+            <Drawer
+                anchor="right"
+                open={filterDrawerOpen}
+                onClose={() => setFilterDrawerOpen(false)}
+                PaperProps={{
+                    sx: { width: { xs: '100%', sm: '400px' }, padding: 3 }
+                }}
+            >
+                {/* Drawer Header */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        Filters
+                    </Typography>
+                    <IconButton onClick={() => setFilterDrawerOpen(false)}>
+                        <CloseIcon />
+                    </IconButton>
+                </Box>
+
+                {/* Category Filter */}
+                <Box sx={{ marginBottom: 3 }}>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Category</InputLabel>
+                        <Select
+                            value={filters.category}
+                            label="Category"
+                            onChange={(e) => handleFilterChange('category', e.target.value)}
+                        >
+                            <MenuItem value="">All Categories</MenuItem>
+                            {categories.map((category) => (
+                                <MenuItem key={category} value={category}>
+                                    {category}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                </Box>
+
+                {/* Price Range Filter */}
+                <Box sx={{ marginBottom: 3 }}>
+                    <Typography variant="subtitle2" sx={{ marginBottom: 2, fontWeight: 'bold' }}>
+                        Price Range
+                    </Typography>
+                    <Box sx={{ paddingX: 1 }}>
+                        <Typography variant="body2" sx={{ marginBottom: 1, color: '#666' }}>
+                            Min: RM{filters.priceMin}
+                        </Typography>
+                        <Slider
+                            value={filters.priceMin}
+                            onChange={(e, value) => handleFilterChange('priceMin', value)}
+                            min={0}
+                            max={filters.priceMax}
+                            step={10}
+                            sx={{ color: '#00bcd4' }}
+                        />
+                        <Typography variant="body2" sx={{ marginTop: 2, marginBottom: 1, color: '#666' }}>
+                            Max: RM{filters.priceMax}
+                        </Typography>
+                        <Slider
+                            value={filters.priceMax}
+                            onChange={(e, value) => handleFilterChange('priceMax', value)}
+                            min={filters.priceMin}
+                            max={10000}
+                            step={10}
+                            sx={{ color: '#00bcd4' }}
+                        />
+                    </Box>
+                </Box>
+
+                {/* Sort Order */}
+                <Box sx={{ marginBottom: 3 }}>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Sort By</InputLabel>
+                        <Select
+                            value={filters.sort}
+                            label="Sort By"
+                            onChange={(e) => handleFilterChange('sort', e.target.value)}
+                        >
+                            <MenuItem value="newest">Newest First</MenuItem>
+                            <MenuItem value="oldest">Oldest First</MenuItem>
+                            <MenuItem value="price_asc">Price: Low to High</MenuItem>
+                            <MenuItem value="price_desc">Price: High to Low</MenuItem>
+                            <MenuItem value="name_asc">Name: A to Z</MenuItem>
+                            <MenuItem value="name_desc">Name: Z to A</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Box>
+
+                {/* Action Buttons */}
+                <Box sx={{ display: 'flex', gap: 2, marginTop: 'auto' }}>
+                    <Button
+                        variant="outlined"
+                        fullWidth
+                        onClick={handleClearFilters}
+                        sx={{
+                            color: '#666',
+                            borderColor: '#e0e0e0',
+                            textTransform: 'none',
+                            '&:hover': {
+                                borderColor: '#666',
+                                backgroundColor: 'transparent'
+                            }
+                        }}
+                    >
+                        Clear All
+                    </Button>
+                    <Button
+                        variant="contained"
+                        fullWidth
+                        onClick={handleApplyFilters}
+                        sx={{
+                            backgroundColor: '#00bcd4',
+                            textTransform: 'none',
+                            '&:hover': {
+                                backgroundColor: '#0097a7'
+                            }
+                        }}
+                    >
+                        Apply Filters
+                    </Button>
+                </Box>
+            </Drawer>
         </>
     );
 }

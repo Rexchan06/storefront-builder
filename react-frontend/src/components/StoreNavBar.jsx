@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Button, Box, Typography, TextField, InputAdornment, IconButton, Badge, Menu, MenuItem } from '@mui/material'
+import { Button, Box, Typography, TextField, InputAdornment, IconButton, Badge, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
 import MenuIcon from '@mui/icons-material/Menu'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
+import ReceiptIcon from '@mui/icons-material/Receipt'
+import LogoutIcon from '@mui/icons-material/Logout'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
+import { API_STORAGE_URL } from '../services/api'
 
 function StoreNavBar({ store, isPublic = false }) {
     const navigate = useNavigate()
@@ -31,6 +34,11 @@ function StoreNavBar({ store, isPublic = false }) {
         setAnchorEl(null)
     }
 
+    const handleOrderHistory = () => {
+        handleMenuClose()
+        navigate(`/store/${store.store_slug}/orders`)
+    }
+
     const handleLogout = () => {
         localStorage.removeItem('customerToken')
         localStorage.removeItem('customer')
@@ -48,11 +56,24 @@ function StoreNavBar({ store, isPublic = false }) {
         justifyContent: 'space-between',
         gap: 3
     }}>
-        {/* Logo and Store Name */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 'fit-content' }}>
+        {/* Logo and Store Name - Clickable */}
+        <Box
+            onClick={() => navigate(`/store/${store.store_slug}`)}
+            sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                minWidth: 'fit-content',
+                cursor: 'pointer',
+                transition: 'opacity 0.2s',
+                '&:hover': {
+                    opacity: 0.8
+                }
+            }}
+        >
             {store.logo ? (
                 <img
-                    src={`http://localhost:8000/storage/${store.logo}`}
+                    src={`${API_STORAGE_URL}/${store.logo}`}
                     alt={store.store_name}
                     style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '50%' }}
                 />
@@ -138,7 +159,18 @@ function StoreNavBar({ store, isPublic = false }) {
                         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                     >
-                        <MenuItem onClick={handleLogout}>Logout</MenuItem>
+                        <MenuItem onClick={handleOrderHistory}>
+                            <ListItemIcon>
+                                <ReceiptIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Order History</ListItemText>
+                        </MenuItem>
+                        <MenuItem onClick={handleLogout}>
+                            <ListItemIcon>
+                                <LogoutIcon fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Logout</ListItemText>
+                        </MenuItem>
                     </Menu>
                 </>
             ) : (

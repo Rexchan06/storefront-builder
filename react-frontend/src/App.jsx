@@ -12,6 +12,7 @@ import PublicStorePage from './pages/PublicStorePage';
 import ShoppingCartPage from './pages/cart/ShoppingCartPage';
 import CustomerLoginPage from './pages/customer/CustomerLoginPage';
 import CustomerRegisterPage from './pages/customer/CustomerRegisterPage';
+import CustomerOrderHistoryPage from './pages/customer/CustomerOrderHistoryPage';
 import CheckoutPage from './pages/CheckoutPage';
 import PaymentSuccessPage from './pages/PaymentSuccessPage';
 import PaymentFailedPage from './pages/PaymentFailedPage';
@@ -42,6 +43,7 @@ function App() {
             <Route path="/store/:slug/payment-failed" element={<PaymentFailedPage />} />
             <Route path="/store/:slug/login" element={<CustomerLoginPage />} />
             <Route path="/store/:slug/register" element={<CustomerRegisterPage />} />
+            <Route path="/store/:slug/orders" element={<CustomerOrderHistoryPage />} />
           </Routes>
       </Router>
     </CartProvider>

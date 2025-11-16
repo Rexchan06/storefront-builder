@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Paper, Checkbox, FormControlLabel } from '@mui/material';
 import NavBar from '../components/NavBar';
+import { API_URL } from '../services/api';
 
 function StoreFormPage() {
     const navigate = useNavigate();
@@ -113,7 +114,7 @@ function StoreFormPage() {
                 submitData.append('background_image', backgroundImageFile);
             }
 
-            const response = await fetch('http://localhost:8000/api/stores', {
+            const response = await fetch(`${API_URL}/api/stores`, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/json',

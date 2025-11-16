@@ -10,6 +10,9 @@ use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OrderStatusUpdateMail;
+use App\Mail\OrderShippedMail;
 
 class OrderController extends Controller
 {
@@ -106,17 +109,53 @@ class OrderController extends Controller
             return response()->json(['message' => 'Order not found'], 404);
         }
 
-        // Cannot modify completed orders
-        if ($order->status === 'completed') {
-            return response()->json(['message' => 'Cannot modify completed orders'], 422);
+        $newStatus = $request->status;
+        $previousStatus = $order->status;
+
+        // Validate status transition using Order model method
+        if (!$order->canTransitionTo($newStatus)) {
+            $allowedTransitions = $order->getAllowedTransitions();
+
+            return response()->json([
+                'message' => 'Invalid status transition',
+                'error' => sprintf(
+                    'Cannot transition from "%s" to "%s".',
+                    $order->status,
+                    $newStatus
+                ),
+                'current_status' => $order->status,
+                'allowed_transitions' => $allowedTransitions,
+                'hint' => empty($allowedTransitions)
+                    ? 'This order is in a final status and cannot be modified.'
+                    : 'You can only transition to: ' . implode(', ', $allowedTransitions)
+            ], 422);
         }
 
-        $order->status = $request->status;
+        $order->status = $newStatus;
         $order->save();
+
+        // Send appropriate email notification
+        try {
+            if ($newStatus === 'shipped') {
+                // Send specific shipped email
+                Mail::to($order->customer_email)->send(new OrderShippedMail($order));
+            } elseif ($previousStatus !== $newStatus) {
+                // Send general status update email for other status changes
+                Mail::to($order->customer_email)->send(new OrderStatusUpdateMail($order, $previousStatus, $newStatus));
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send order status email', [
+                'order_id' => $order->id,
+                'previous_status' => $previousStatus,
+                'new_status' => $newStatus,
+                'error' => $e->getMessage()
+            ]);
+        }
 
         return response()->json([
             'message' => 'Order status updated successfully',
-            'order' => $order->load('orderItems.product')
+            'order' => $order->load('orderItems.product'),
+            'allowed_next_transitions' => $order->getAllowedTransitions()
         ]);
     }
 

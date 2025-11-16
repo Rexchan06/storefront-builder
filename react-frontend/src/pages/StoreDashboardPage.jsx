@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Container, Button, IconButton } from '@mui/material';
+import { Box, Typography, Container, Button, IconButton, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import NavBar from '../components/NavBar';
 import AdminBar from '../components/AdminBar';
 import StoreNavBar from '../components/StoreNavBar';
+import LoadingScreen from '../components/LoadingScreen';
+import PublishStoreDialog from '../components/PublishStoreDialog';
+import { API_URL, API_STORAGE_URL } from '../services/api';
 
 function StoreDashboardPage() {
     const navigate = useNavigate();
@@ -13,6 +18,9 @@ function StoreDashboardPage() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [productToDelete, setProductToDelete] = useState(null);
+    const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
     useEffect(() => {
         const fetchStoreAndProducts = async () => {
@@ -25,7 +33,7 @@ function StoreDashboardPage() {
 
             try {
                 // Fetch store
-                const storeResponse = await fetch('http://localhost:8000/api/stores', {
+                const storeResponse = await fetch(`${API_URL}/api/stores`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -47,7 +55,7 @@ function StoreDashboardPage() {
                 setStore(storeData);
 
                 // Fetch products
-                const productsResponse = await fetch('http://localhost:8000/api/products', {
+                const productsResponse = await fetch(`${API_URL}/api/products`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',
@@ -70,52 +78,71 @@ function StoreDashboardPage() {
         fetchStoreAndProducts();
     }, [navigate]);
 
-    const handlePublish = async () => {
+    const handleEditProduct = (productId) => {
+        navigate('/product-form', { state: { productId } });
+    };
+
+    const handleDeleteClick = (product) => {
+        setProductToDelete(product);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!productToDelete) return;
+
         const token = localStorage.getItem('token');
 
         try {
-            const response = await fetch(`http://localhost:8000/api/stores/${store.id}`, {
-                method: 'PUT',
+            const response = await fetch(`${API_URL}/api/products/${productToDelete.id}`, {
+                method: 'DELETE',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ is_active: true })
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
             });
 
             const data = await response.json();
 
-            if (!response.ok) {
-                if (data.error === 'no_products') {
-                    alert('Cannot publish store without any active products. Please add at least one product first.');
-                } else {
-                    alert(data.message || 'Failed to publish store');
-                }
-                return;
-            }
-
             if (response.ok) {
-                const publicUrl = `http://localhost:3000/store/${store.store_slug}`;
-                const confirmed = window.confirm(
-                    `🎉 Store published successfully!\n\n` +
-                    `Your public store URL:\n${publicUrl}\n\n` +
-                    `Click OK to view your public store, or Cancel to stay here.`
-                );
-
-                setStore({ ...store, is_active: true });
-
-                if (confirmed) {
-                    window.open(publicUrl, '_blank');
+                if (data.action === 'deactivated') {
+                    // Product was deactivated, update in state
+                    setProducts(products.map(p =>
+                        p.id === productToDelete.id
+                            ? { ...p, is_active: false }
+                            : p
+                    ));
+                    alert(data.message + '\n\n' + data.note);
+                } else {
+                    // Product was permanently deleted, remove from state
+                    setProducts(products.filter(p => p.id !== productToDelete.id));
+                    alert(data.message);
                 }
+                setDeleteDialogOpen(false);
+                setProductToDelete(null);
+            } else {
+                alert(data.message || 'Failed to delete product');
             }
         } catch (err) {
-            alert('Failed to publish store. Please try again.');
+            alert('Failed to delete product. Please try again.');
         }
     };
 
+    const handleDeleteCancel = () => {
+        setDeleteDialogOpen(false);
+        setProductToDelete(null);
+    };
+
+    const handlePublishClick = () => {
+        setPublishDialogOpen(true);
+    };
+
+    const handlePublishSuccess = (updatedStore) => {
+        setStore(updatedStore);
+        setPublishDialogOpen(false);
+    };
+
     if (loading) {
-        return <div>Loading...</div>;
+        return <LoadingScreen />;
     }
 
     if (error) {
@@ -132,7 +159,7 @@ function StoreDashboardPage() {
             <NavBar />
 
             {/* Admin Bar */}
-            <AdminBar store={store} handlePublish={handlePublish} productCount={products.length} />
+            <AdminBar store={store} handlePublish={handlePublishClick} productCount={products.length} />
 
             {/* Store Navbar */}
             <StoreNavBar store={store} />
@@ -141,7 +168,7 @@ function StoreDashboardPage() {
             <Box
                 sx={{
                     backgroundImage: store.background_image
-                        ? `url(http://localhost:8000/storage/${store.background_image})`
+                        ? `url(${API_STORAGE_URL}/${store.background_image})`
                         : 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
@@ -243,7 +270,7 @@ function StoreDashboardPage() {
                                             >
                                                 {product.image ? (
                                                     <img
-                                                        src={`http://localhost:8000/storage/${product.image}`}
+                                                        src={`${API_STORAGE_URL}/${product.image}`}
                                                         alt={product.name}
                                                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                     />
@@ -265,44 +292,35 @@ function StoreDashboardPage() {
                                                         </Typography>
                                                     </Box>
                                                 </Box>
-                                                <Box sx={{ display: 'flex', gap: 1, marginTop: 1 }}>
-                                                    <Button
-                                                        variant="contained"
+                                                <Box sx={{ display: 'flex', gap: 1, marginTop: 1, justifyContent: 'center' }}>
+                                                    <IconButton
                                                         size="small"
+                                                        onClick={() => handleEditProduct(product.id)}
                                                         sx={{
-                                                            backgroundColor: '#000',
+                                                            backgroundColor: '#00bcd4',
                                                             color: 'white',
-                                                            textTransform: 'none',
-                                                            fontSize: '11px',
-                                                            padding: '4px 12px',
-                                                            borderRadius: '4px',
-                                                            minWidth: 'auto',
+                                                            padding: '6px',
                                                             '&:hover': {
-                                                                backgroundColor: '#333'
+                                                                backgroundColor: '#00a5bb'
                                                             }
                                                         }}
                                                     >
-                                                        Buy Now
-                                                    </Button>
-                                                    <Button
-                                                        variant="outlined"
+                                                        <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
                                                         size="small"
+                                                        onClick={() => handleDeleteClick(product)}
                                                         sx={{
-                                                            color: '#000',
-                                                            borderColor: '#e0e0e0',
-                                                            textTransform: 'none',
-                                                            fontSize: '11px',
-                                                            padding: '4px 8px',
-                                                            borderRadius: '4px',
-                                                            minWidth: 'auto',
+                                                            backgroundColor: '#f44336',
+                                                            color: 'white',
+                                                            padding: '6px',
                                                             '&:hover': {
-                                                                borderColor: '#000',
-                                                                backgroundColor: 'transparent'
+                                                                backgroundColor: '#d32f2f'
                                                             }
                                                         }}
                                                     >
-                                                        Add to Cart
-                                                    </Button>
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
                                                 </Box>
                                             </Box>
                                         </Box>
@@ -350,7 +368,7 @@ function StoreDashboardPage() {
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                                 {store.logo ? (
                                     <img
-                                        src={`http://localhost:8000/storage/${store.logo}`}
+                                        src={`${API_STORAGE_URL}/${store.logo}`}
                                         alt={store.store_name}
                                         style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '50%', filter: 'brightness(0) invert(1)' }}
                                     />
@@ -397,6 +415,35 @@ function StoreDashboardPage() {
                     </Box>
                 </Container>
             </Box>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={handleDeleteCancel}
+            >
+                <DialogTitle>Delete Product</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete "{productToDelete?.name}"? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleDeleteCancel} color="primary">
+                        Cancel
+                    </Button>
+                    <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+                        Delete
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Publish Store Dialog */}
+            <PublishStoreDialog
+                open={publishDialogOpen}
+                onClose={() => setPublishDialogOpen(false)}
+                store={store}
+                onSuccess={handlePublishSuccess}
+            />
         </>
     );
 }

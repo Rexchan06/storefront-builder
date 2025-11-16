@@ -10,6 +10,8 @@ use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OrderConfirmationMail;
 
 class CustomerOrderController extends Controller
 {
@@ -107,6 +109,17 @@ class CustomerOrderController extends Controller
 
             DB::commit();
 
+            // Send order confirmation email
+            try {
+                Mail::to($order->customer_email)->send(new OrderConfirmationMail($order));
+            } catch (\Exception $e) {
+                // Log email error but don't fail the order creation
+                \Log::error('Failed to send order confirmation email', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+
             return response()->json([
                 'message' => 'Order created successfully',
                 'order' => $order->load('orderItems.product')
@@ -156,6 +169,23 @@ class CustomerOrderController extends Controller
         $order = Order::where('id', $id)
             ->where('customer_id', $customer->id)
             ->with(['orderItems.product', 'store'])
+            ->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        return response()->json($order);
+    }
+
+    /**
+     * Get specific order details (public, no auth required)
+     * GET /api/public/orders/{id}
+     */
+    public function showPublic($id)
+    {
+        $order = Order::where('id', $id)
+            ->with(['orderItems', 'store'])
             ->first();
 
         if (!$order) {

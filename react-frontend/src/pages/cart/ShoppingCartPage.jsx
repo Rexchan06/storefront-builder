@@ -5,8 +5,10 @@ import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import StoreNavBar from '../../components/StoreNavBar';
+import LoadingScreen from '../../components/LoadingScreen';
 import { useCart } from '../../context/CartContext';
 import { useState, useEffect } from 'react';
+import { API_URL, API_STORAGE_URL } from '../../services/api';
 
 function ShoppingCartPage() {
     const { slug } = useParams();
@@ -18,7 +20,7 @@ function ShoppingCartPage() {
     useEffect(() => {
         const fetchStore = async () => {
             try {
-                const response = await fetch(`http://localhost:8000/api/public/stores/${slug}`);
+                const response = await fetch(`${API_URL}/api/public/stores/${slug}`);
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);
@@ -34,11 +36,7 @@ function ShoppingCartPage() {
     }, [slug]);
 
     if (loading) {
-        return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-                <Typography>Loading...</Typography>
-            </Box>
-        );
+        return <LoadingScreen />;
     }
 
     if (!store) {
@@ -94,73 +92,79 @@ function ShoppingCartPage() {
                         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: 3 }}>
                             {/* Cart Items */}
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {cartItems.map((item) => (
-                                    <Card key={item.productId} sx={{ display: 'flex', padding: 2 }}>
-                                        <CardMedia
-                                            component="img"
-                                            sx={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '8px' }}
-                                            image={
-                                                item.image
-                                                    ? `http://localhost:8000/storage/${item.image}`
-                                                    : '/placeholder.png'
-                                            }
-                                            alt={item.name}
-                                        />
-                                        <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                            <Box>
-                                                <Typography variant="h6" sx={{ fontWeight: 'bold', marginBottom: 1 }}>
-                                                    {item.name}
-                                                </Typography>
-                                                <Typography variant="h6" sx={{ color: '#00bcd4', fontWeight: 'bold' }}>
-                                                    RM {item.price.toFixed(2)}
-                                                </Typography>
-                                            </Box>
+                                {cartItems.map((item) => {
+                                    const itemPrice = parseFloat(item.price);
+                                    const displayPrice = isNaN(itemPrice) ? '0.00' : itemPrice.toFixed(2);
+                                    const itemSubtotal = isNaN(itemPrice) ? '0.00' : (itemPrice * item.quantity).toFixed(2);
 
-                                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-                                                {/* Quantity Controls */}
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                                                        sx={{
-                                                            border: '1px solid #e0e0e0',
-                                                            borderRadius: '4px'
-                                                        }}
-                                                    >
-                                                        <RemoveIcon fontSize="small" />
-                                                    </IconButton>
-                                                    <Typography sx={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>
-                                                        {item.quantity}
+                                    return (
+                                        <Card key={item.productId} sx={{ display: 'flex', padding: 2 }}>
+                                            <CardMedia
+                                                component="img"
+                                                sx={{ width: 120, height: 120, objectFit: 'cover', borderRadius: '8px' }}
+                                                image={
+                                                    item.image
+                                                        ? `${API_STORAGE_URL}/${item.image}`
+                                                        : '/placeholder.png'
+                                                }
+                                                alt={item.name}
+                                            />
+                                            <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                <Box>
+                                                    <Typography variant="h6" sx={{ fontWeight: 'bold', marginBottom: 1 }}>
+                                                        {item.name}
                                                     </Typography>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                                                        disabled={item.quantity >= item.stock}
-                                                        sx={{
-                                                            border: '1px solid #e0e0e0',
-                                                            borderRadius: '4px'
-                                                        }}
-                                                    >
-                                                        <AddIcon fontSize="small" />
-                                                    </IconButton>
+                                                    <Typography variant="h6" sx={{ color: '#00bcd4', fontWeight: 'bold' }}>
+                                                        RM {displayPrice}
+                                                    </Typography>
                                                 </Box>
 
-                                                {/* Subtotal and Remove */}
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                                                        RM {(item.price * item.quantity).toFixed(2)}
-                                                    </Typography>
-                                                    <IconButton
-                                                        onClick={() => removeFromCart(item.productId)}
-                                                        sx={{ color: '#f44336' }}
-                                                    >
-                                                        <DeleteIcon />
-                                                    </IconButton>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                                                    {/* Quantity Controls */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                                                            sx={{
+                                                                border: '1px solid #e0e0e0',
+                                                                borderRadius: '4px'
+                                                            }}
+                                                        >
+                                                            <RemoveIcon fontSize="small" />
+                                                        </IconButton>
+                                                        <Typography sx={{ minWidth: '40px', textAlign: 'center', fontWeight: 'bold' }}>
+                                                            {item.quantity}
+                                                        </Typography>
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                                                            disabled={item.quantity >= item.stock}
+                                                            sx={{
+                                                                border: '1px solid #e0e0e0',
+                                                                borderRadius: '4px'
+                                                            }}
+                                                        >
+                                                            <AddIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Box>
+
+                                                    {/* Subtotal and Remove */}
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                                        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                                                            RM {itemSubtotal}
+                                                        </Typography>
+                                                        <IconButton
+                                                            onClick={() => removeFromCart(item.productId)}
+                                                            sx={{ color: '#f44336' }}
+                                                        >
+                                                            <DeleteIcon />
+                                                        </IconButton>
+                                                    </Box>
                                                 </Box>
-                                            </Box>
-                                        </CardContent>
-                                    </Card>
-                                ))}
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
                             </Box>
 
                             {/* Cart Summary */}

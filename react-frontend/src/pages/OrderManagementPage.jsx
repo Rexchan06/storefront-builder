@@ -35,6 +35,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 import NavBar from '../components/NavBar';
 import AdminBar from '../components/AdminBar';
+import LoadingScreen from '../components/LoadingScreen';
+import PublishStoreDialog from '../components/PublishStoreDialog';
+import { API_URL, API_STORAGE_URL } from '../services/api';
 
 const OrderManagementPage = () => {
   const [orders, setOrders] = useState([]);
@@ -48,6 +51,7 @@ const OrderManagementPage = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const navigate = useNavigate();
 
   // Fetch orders and store on component mount
@@ -76,19 +80,19 @@ const OrderManagementPage = () => {
 
       // Fetch store, orders, and products data in parallel
       const [storeResponse, ordersResponse, productsResponse] = await Promise.all([
-        fetch('http://localhost:8000/api/stores', {
+        fetch(`${API_URL}/api/stores`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
           },
         }),
-        fetch('http://localhost:8000/api/orders', {
+        fetch(`${API_URL}/api/orders`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
           },
         }),
-        fetch('http://localhost:8000/api/products', {
+        fetch(`${API_URL}/api/products`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Accept': 'application/json',
@@ -123,7 +127,7 @@ const OrderManagementPage = () => {
     try {
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:8000/api/orders/${orderId}/status`, {
+      const response = await fetch(`${API_URL}/api/orders/${orderId}/status`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -158,7 +162,7 @@ const OrderManagementPage = () => {
     try {
       const token = localStorage.getItem('token');
 
-      const response = await fetch(`http://localhost:8000/api/orders/${orderToDelete.id}`, {
+      const response = await fetch(`${API_URL}/api/orders/${orderToDelete.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -204,60 +208,21 @@ const OrderManagementPage = () => {
     return `RM ${parseFloat(amount).toFixed(2)}`;
   };
 
-  const handlePublish = async () => {
-    const token = localStorage.getItem('token');
+  const handlePublishClick = () => {
+    setPublishDialogOpen(true);
+  };
 
-    try {
-      const response = await fetch(`http://localhost:8000/api/stores/${store.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ is_active: true })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.error === 'no_products') {
-          alert('Cannot publish store without any active products. Please add at least one product first.');
-        } else {
-          alert(data.message || 'Failed to publish store');
-        }
-        return;
-      }
-
-      if (response.ok) {
-        const publicUrl = `http://localhost:3000/store/${store.store_slug}`;
-        const confirmed = window.confirm(
-          `🎉 Store published successfully!\n\n` +
-          `Your public store URL:\n${publicUrl}\n\n` +
-          `Click OK to view your public store, or Cancel to stay here.`
-        );
-
-        setStore({ ...store, is_active: true });
-
-        if (confirmed) {
-          window.open(publicUrl, '_blank');
-        }
-      }
-    } catch (err) {
-      alert('Failed to publish store. Please try again.');
-    }
+  const handlePublishSuccess = (updatedStore) => {
+    setStore(updatedStore);
+    setPublishDialogOpen(false);
   };
 
   if (loading) {
     return (
       <>
         <NavBar />
-        {store && <AdminBar store={store} handlePublish={handlePublish} productCount={products.length} />}
-        <Container>
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-            <CircularProgress />
-          </Box>
-        </Container>
+        {store && <AdminBar store={store} handlePublish={handlePublishClick} productCount={products.length} />}
+        <LoadingScreen message="Loading orders..." fullScreen={false} />
       </>
     );
   }
@@ -265,7 +230,7 @@ const OrderManagementPage = () => {
   return (
     <>
       <NavBar />
-      {store && <AdminBar store={store} handlePublish={handlePublish} productCount={products.length} />}
+      {store && <AdminBar store={store} handlePublish={handlePublishClick} productCount={products.length} />}
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography variant="h4" gutterBottom>
@@ -527,6 +492,14 @@ const OrderManagementPage = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Publish Store Dialog */}
+        <PublishStoreDialog
+          open={publishDialogOpen}
+          onClose={() => setPublishDialogOpen(false)}
+          store={store}
+          onSuccess={handlePublishSuccess}
+        />
       </Container>
     </>
   );

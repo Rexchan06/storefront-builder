@@ -40,6 +40,20 @@ function AdminBar({ store, handlePublish, productCount = 0 }) {
         <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
                 variant="text"
+                onClick={() => navigate('/store-dashboard')}
+                sx={{
+                    color: 'white',
+                    textTransform: 'none',
+                    fontSize: '14px',
+                    '&:hover': {
+                        backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                    }
+                }}
+            >
+                Store Dashboard
+            </Button>
+            <Button
+                variant="text"
                 onClick={() => navigate('/product-form')}
                 sx={{
                     color: 'white',

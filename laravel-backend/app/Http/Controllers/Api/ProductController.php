@@ -144,7 +144,7 @@ class ProductController extends Controller
     }
 
     /**
-     * DESTROY - Delete product
+     * DESTROY - Delete product (soft delete if has orders)
      */
     public function destroy(string $id)
     {
@@ -157,10 +157,27 @@ class ProductController extends Controller
             ], 403);
         }
 
-        $product->delete();
+        // Check if product has been ordered
+        $hasOrders = $product->orderItems()->exists();
 
-        return response()->json([
-            'message' => 'Product deleted successfully'
-        ], 200);
+        if ($hasOrders) {
+            // Soft delete: deactivate instead of deleting to preserve order history
+            $product->is_active = false;
+            $product->save();
+
+            return response()->json([
+                'message' => 'Product deactivated successfully',
+                'action' => 'deactivated',
+                'note' => 'Product has been deactivated because it has existing orders. It will no longer appear in your store.'
+            ], 200);
+        } else {
+            // No orders: safe to permanently delete
+            $product->delete();
+
+            return response()->json([
+                'message' => 'Product deleted successfully',
+                'action' => 'deleted'
+            ], 200);
+        }
     }
 }
