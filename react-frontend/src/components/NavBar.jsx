@@ -44,12 +44,13 @@ function NavBar() {
                 }}
                 onClick={() => !isLoggedIn && navigate('/')}
             >
-                <Box
-                    sx={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        backgroundColor: 'black'
+                <img
+                    src="/miles-logo.jpg"
+                    alt="Miles Logo"
+                    style={{
+                        width: '32px',
+                        height: '32px',
+                        objectFit: 'contain'
                     }}
                 />
                 <Typography
