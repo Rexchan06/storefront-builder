@@ -23,6 +23,7 @@ Route::post('/customer/login', [CustomerAuthController::class, 'login']);
 // Public routes (no authentication required)
 Route::get('/public/stores/{slug}', [PublicStoreController::class, 'show']);
 Route::get('/public/stores/{slug}/categories', [PublicStoreController::class, 'getCategories']);
+Route::get('/public/stores/{slug}/products/{productId}', [PublicStoreController::class, 'getProduct']);
 Route::post('/customer/orders', [CustomerOrderController::class, 'store']);
 Route::post('/payments/stripe/create-checkout-session', [StripeController::class, 'createCheckoutSession']);
 Route::post('/payments/stripe/verify-payment', [StripeController::class, 'verifyPayment']);

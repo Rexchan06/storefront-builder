@@ -43,14 +43,10 @@ class PublicStoreController extends Controller
         // Build query for active products
         $query = $store->products()->where('is_active', true);
 
-        // Search functionality
+        // Search functionality - search in product name only
         if ($request->has('search') && !empty($request->search)) {
             $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->where('name', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('description', 'like', '%' . $searchTerm . '%')
-                  ->orWhere('category', 'like', '%' . $searchTerm . '%');
-            });
+            $query->where('name', 'like', '%' . $searchTerm . '%');
         }
 
         // Category filter
@@ -144,6 +140,62 @@ class PublicStoreController extends Controller
 
         return response()->json([
             'categories' => $categories
+        ], 200);
+    }
+
+    /**
+     * Get a single product with related products
+     * No authentication required
+     *
+     * @param string $slug Store slug
+     * @param int $productId Product ID
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getProduct(string $slug, int $productId)
+    {
+        // Find store by slug
+        $store = Store::where('store_slug', $slug)->first();
+
+        if (!$store) {
+            return response()->json([
+                'message' => 'Store not found'
+            ], 404);
+        }
+
+        // Check if store is active/published
+        if (!$store->is_active) {
+            return response()->json([
+                'message' => 'This store is not currently available'
+            ], 403);
+        }
+
+        // Find product
+        $product = $store->products()
+            ->where('id', $productId)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$product) {
+            return response()->json([
+                'message' => 'Product not found or not available'
+            ], 404);
+        }
+
+        // Get related products from the same category (limit to 8)
+        $relatedProducts = [];
+        if ($product->category) {
+            $relatedProducts = $store->products()
+                ->where('is_active', true)
+                ->where('category', $product->category)
+                ->where('id', '!=', $product->id) // Exclude current product
+                ->take(8)
+                ->get();
+        }
+
+        return response()->json([
+            'product' => $product,
+            'store' => $store,
+            'relatedProducts' => $relatedProducts
         ], 200);
     }
 }

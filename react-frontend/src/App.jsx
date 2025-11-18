@@ -9,6 +9,7 @@ import StoreDashboardPage from './pages/StoreDashboardPage';
 import ProductFormPage from './pages/ProductFormPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import PublicStorePage from './pages/PublicStorePage';
+import ProductDetailPage from './pages/ProductDetailPage';
 import ShoppingCartPage from './pages/cart/ShoppingCartPage';
 import CustomerLoginPage from './pages/customer/CustomerLoginPage';
 import CustomerRegisterPage from './pages/customer/CustomerRegisterPage';
@@ -37,6 +38,7 @@ function App() {
 
             {/* Public Store Routes */}
             <Route path="/store/:slug" element={<PublicStorePage />} />
+            <Route path="/store/:slug/product/:productId" element={<ProductDetailPage />} />
             <Route path="/store/:slug/cart" element={<ShoppingCartPage />} />
             <Route path="/store/:slug/checkout" element={<CheckoutPage />} />
             <Route path="/store/:slug/payment-success/:orderId" element={<PaymentSuccessPage />} />

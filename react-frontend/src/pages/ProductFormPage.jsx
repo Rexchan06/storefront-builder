@@ -116,7 +116,7 @@ function ProductFormPage() {
 
     const handlePublishSuccess = (updatedStore) => {
         setStore(updatedStore);
-        setPublishDialogOpen(false);
+        // Don't close the dialog - let the user close it manually or via "View Store" button
     };
 
     const handleChange = (e) => {
@@ -285,6 +285,27 @@ function ProductFormPage() {
                                 required
                                 error={!!errors.name}
                                 helperText={errors.name ? errors.name[0] : ''}
+                                sx={{
+                                    marginBottom: 3,
+                                    backgroundColor: 'white',
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: '8px'
+                                    }
+                                }}
+                            />
+
+                            <Typography variant="caption" sx={{ display: 'block', marginBottom: 0.5, color: '#000', textTransform: 'uppercase', fontWeight: 'bold', fontSize: '11px' }}>
+                                Category
+                            </Typography>
+                            <TextField
+                                fullWidth
+                                name="category"
+                                type="text"
+                                placeholder="Electronics"
+                                value={formData.category}
+                                onChange={handleChange}
+                                error={!!errors.category}
+                                helperText={errors.category ? errors.category[0] : ''}
                                 sx={{
                                     marginBottom: 3,
                                     backgroundColor: 'white',

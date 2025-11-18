@@ -9,20 +9,23 @@ function AdminBar({ store, handlePublish, productCount = 0 }) {
             return {
                 text: 'Add Products First',
                 disabled: true,
-                color: '#9e9e9e'
+                color: '#9e9e9e',
+                hoverColor: '#9e9e9e'
             }
         }
         if (store.is_active) {
             return {
-                text: 'Live',
-                disabled: true,
-                color: '#4caf50'
+                text: 'Store is Live',
+                disabled: false,
+                color: '#4caf50',
+                hoverColor: '#f44336'
             }
         }
         return {
             text: 'Publish Store',
             disabled: false,
-            color: '#4caf50'
+            color: '#4caf50',
+            hoverColor: '#45a049'
         }
     }
 
@@ -95,7 +98,13 @@ function AdminBar({ store, handlePublish, productCount = 0 }) {
                 Analytics
             </Button>
             <Tooltip
-                title={productCount === 0 ? 'Add at least one product before publishing' : ''}
+                title={
+                    productCount === 0
+                        ? 'Add at least one product before publishing'
+                        : store.is_active
+                            ? 'Click to unpublish and hide your store'
+                            : 'Click to make your store publicly accessible'
+                }
                 placement="bottom"
             >
                 <span>
@@ -111,8 +120,10 @@ function AdminBar({ store, handlePublish, productCount = 0 }) {
                             fontWeight: 500,
                             borderRadius: '6px',
                             padding: '6px 20px',
+                            transition: 'all 0.3s ease',
                             '&:hover': {
-                                backgroundColor: publishState.disabled ? publishState.color : '#45a049'
+                                backgroundColor: publishState.disabled ? publishState.color : publishState.hoverColor,
+                                transform: publishState.disabled ? 'none' : 'scale(1.02)'
                             },
                             '&.Mui-disabled': {
                                 backgroundColor: publishState.color,

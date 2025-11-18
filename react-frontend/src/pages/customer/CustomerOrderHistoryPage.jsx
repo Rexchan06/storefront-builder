@@ -16,7 +16,12 @@ import {
     Alert,
     Collapse,
     IconButton,
-    Divider
+    Divider,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions
 } from '@mui/material';
 import {
     KeyboardArrowDown as KeyboardArrowDownIcon,
@@ -27,6 +32,7 @@ import {
 import StoreNavBar from '../../components/StoreNavBar';
 import LoadingScreen from '../../components/LoadingScreen';
 import { API_URL } from '../../services/api';
+import { updatePageForStore } from '../../utils/pageUtils';
 
 function CustomerOrderHistoryPage() {
     const { slug } = useParams();
@@ -36,6 +42,10 @@ function CustomerOrderHistoryPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [expandedOrder, setExpandedOrder] = useState(null);
+    const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+    const [orderToCancel, setOrderToCancel] = useState(null);
+    const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState({ title: '', message: '' });
 
     useEffect(() => {
         // Check if customer is logged in
@@ -62,6 +72,9 @@ function CustomerOrderHistoryPage() {
             }
 
             setStore(storeData.store);
+
+            // Update page title and favicon for this store
+            updatePageForStore(storeData.store);
 
             // Fetch customer orders
             const ordersResponse = await fetch(`${API_URL}/api/customer/orders`, {
@@ -93,14 +106,17 @@ function CustomerOrderHistoryPage() {
         }
     };
 
-    const handleCancelOrder = async (orderId) => {
-        if (!window.confirm('Are you sure you want to cancel this order?')) {
-            return;
-        }
+    const handleCancelClick = (orderId) => {
+        setOrderToCancel(orderId);
+        setCancelDialogOpen(true);
+    };
+
+    const handleCancelConfirm = async () => {
+        if (!orderToCancel) return;
 
         try {
             const customerToken = localStorage.getItem('customerToken');
-            const response = await fetch(`${API_URL}/api/customer/orders/${orderId}/cancel`, {
+            const response = await fetch(`${API_URL}/api/customer/orders/${orderToCancel}/cancel`, {
                 method: 'PUT',
                 headers: {
                     'Authorization': `Bearer ${customerToken}`,
@@ -110,15 +126,32 @@ function CustomerOrderHistoryPage() {
 
             const data = await response.json();
 
+            setCancelDialogOpen(false);
+            setOrderToCancel(null);
+
             if (!response.ok) {
-                alert(data.message || 'Failed to cancel order');
+                setSuccessMessage({
+                    title: 'Error',
+                    message: data.message || 'Failed to cancel order'
+                });
+                setSuccessDialogOpen(true);
                 return;
             }
 
-            alert('Order cancelled successfully');
+            setSuccessMessage({
+                title: 'Order Cancelled',
+                message: 'Your order has been cancelled successfully.'
+            });
+            setSuccessDialogOpen(true);
             fetchStoreAndOrders(); // Refresh orders
         } catch (err) {
-            alert('Failed to cancel order: ' + err.message);
+            setCancelDialogOpen(false);
+            setOrderToCancel(null);
+            setSuccessMessage({
+                title: 'Error',
+                message: 'Failed to cancel order: ' + err.message
+            });
+            setSuccessDialogOpen(true);
         }
     };
 
@@ -185,7 +218,7 @@ function CustomerOrderHistoryPage() {
                                 size="small"
                                 color="error"
                                 variant="outlined"
-                                onClick={() => handleCancelOrder(order.id)}
+                                onClick={() => handleCancelClick(order.id)}
                             >
                                 Cancel
                             </Button>
@@ -343,6 +376,45 @@ function CustomerOrderHistoryPage() {
                         </Table>
                     </TableContainer>
                 )}
+
+                {/* Cancel Confirmation Dialog */}
+                <Dialog
+                    open={cancelDialogOpen}
+                    onClose={() => setCancelDialogOpen(false)}
+                >
+                    <DialogTitle>Cancel Order</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText>
+                            Are you sure you want to cancel this order? This action cannot be undone.
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setCancelDialogOpen(false)} color="primary">
+                            No, Keep Order
+                        </Button>
+                        <Button onClick={handleCancelConfirm} color="error" variant="contained">
+                            Yes, Cancel Order
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Success/Error Dialog */}
+                <Dialog
+                    open={successDialogOpen}
+                    onClose={() => setSuccessDialogOpen(false)}
+                >
+                    <DialogTitle>{successMessage.title}</DialogTitle>
+                    <DialogContent>
+                        <DialogContentText>
+                            {successMessage.message}
+                        </DialogContentText>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setSuccessDialogOpen(false)} variant="contained" color="primary">
+                            OK
+                        </Button>
+                    </DialogActions>
+                </Dialog>
             </Container>
         </Box>
     );

@@ -27,6 +27,7 @@ function PublishStoreDialog({ open, onClose, store, onSuccess }) {
     const [showSuccess, setShowSuccess] = useState(false);
     const [copiedUrl, setCopiedUrl] = useState(false);
     const [storeUrl, setStoreUrl] = useState('');
+    const [wasPublishing, setWasPublishing] = useState(false);
 
     useEffect(() => {
         if (store) {
@@ -41,6 +42,8 @@ function PublishStoreDialog({ open, onClose, store, onSuccess }) {
         const result = await publishStore(store.id, store.is_active);
 
         if (result.success) {
+            // Simple: if store is active now, we just published. If inactive, we just unpublished.
+            setWasPublishing(result.store.is_active);
             setShowSuccess(true);
             if (onSuccess) {
                 onSuccess(result.store);
@@ -55,9 +58,13 @@ function PublishStoreDialog({ open, onClose, store, onSuccess }) {
     };
 
     const handleClose = () => {
-        setShowSuccess(false);
-        setCopiedUrl(false);
         onClose();
+        // Reset states after dialog closes to prevent flash
+        setTimeout(() => {
+            setShowSuccess(false);
+            setCopiedUrl(false);
+            setWasPublishing(false);
+        }, 200);
     };
 
     if (!store) return null;
@@ -101,16 +108,16 @@ function PublishStoreDialog({ open, onClose, store, onSuccess }) {
                         </Box>
 
                         <Typography variant="h5" sx={{ fontWeight: 'bold', marginBottom: 1, color: '#4caf50' }}>
-                            {isPublishing ? 'Store Published!' : 'Store Unpublished'}
+                            {wasPublishing ? 'Store Published!' : 'Store Unpublished'}
                         </Typography>
 
                         <Typography variant="body1" sx={{ color: '#666', marginBottom: 3 }}>
-                            {isPublishing
+                            {wasPublishing
                                 ? 'Your store is now live and accessible to customers.'
                                 : 'Your store is now hidden from public view.'}
                         </Typography>
 
-                        {isPublishing && (
+                        {wasPublishing && (
                             <Box sx={{ backgroundColor: '#f5f5f5', padding: 2, borderRadius: '8px', marginBottom: 2 }}>
                                 <Typography variant="body2" sx={{ color: '#666', marginBottom: 1 }}>
                                     Share your store URL:
@@ -150,24 +157,65 @@ function PublishStoreDialog({ open, onClose, store, onSuccess }) {
                         )}
                     </DialogContent>
 
-                    <DialogActions sx={{ padding: 3, paddingTop: 0 }}>
-                        <Button
-                            onClick={handleClose}
-                            variant="contained"
-                            fullWidth
-                            sx={{
-                                backgroundColor: '#00bcd4',
-                                textTransform: 'none',
-                                padding: '10px',
-                                fontSize: '16px',
-                                fontWeight: 'bold',
-                                '&:hover': {
-                                    backgroundColor: '#00a5bb'
-                                }
-                            }}
-                        >
-                            Done
-                        </Button>
+                    <DialogActions sx={{ padding: 3, paddingTop: 0, gap: 1 }}>
+                        {wasPublishing ? (
+                            <>
+                                <Button
+                                    onClick={() => window.open(storeUrl, '_blank')}
+                                    variant="outlined"
+                                    fullWidth
+                                    sx={{
+                                        borderColor: '#00bcd4',
+                                        color: '#00bcd4',
+                                        textTransform: 'none',
+                                        padding: '10px',
+                                        fontSize: '16px',
+                                        fontWeight: 'bold',
+                                        '&:hover': {
+                                            borderColor: '#00a5bb',
+                                            backgroundColor: 'rgba(0, 188, 212, 0.04)'
+                                        }
+                                    }}
+                                >
+                                    View Store
+                                </Button>
+                                <Button
+                                    onClick={handleClose}
+                                    variant="contained"
+                                    fullWidth
+                                    sx={{
+                                        backgroundColor: '#00bcd4',
+                                        textTransform: 'none',
+                                        padding: '10px',
+                                        fontSize: '16px',
+                                        fontWeight: 'bold',
+                                        '&:hover': {
+                                            backgroundColor: '#00a5bb'
+                                        }
+                                    }}
+                                >
+                                    Close
+                                </Button>
+                            </>
+                        ) : (
+                            <Button
+                                onClick={handleClose}
+                                variant="contained"
+                                fullWidth
+                                sx={{
+                                    backgroundColor: '#00bcd4',
+                                    textTransform: 'none',
+                                    padding: '10px',
+                                    fontSize: '16px',
+                                    fontWeight: 'bold',
+                                    '&:hover': {
+                                        backgroundColor: '#00a5bb'
+                                    }
+                                }}
+                            >
+                                Close
+                            </Button>
+                        )}
                     </DialogActions>
                 </>
             ) : (

@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Button, Box, Typography, TextField, InputAdornment, IconButton, Badge, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
+import { Button, Box, Typography, IconButton, Badge, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material'
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart'
-import MenuIcon from '@mui/icons-material/Menu'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import ReceiptIcon from '@mui/icons-material/Receipt'
 import LogoutIcon from '@mui/icons-material/Logout'
@@ -10,21 +8,24 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { API_STORAGE_URL } from '../services/api'
 
-function StoreNavBar({ store, isPublic = false }) {
+function StoreNavBar({ store, isPublic = false, adminPreview = false }) {
     const navigate = useNavigate()
-    const { getCartItemCount } = useCart()
-    const cartItemCount = getCartItemCount()
+    const { getCartItemCount, cart } = useCart()
+    // Only show cart count if items are from this store
+    const cartItemCount = cart.storeSlug === store.store_slug ? getCartItemCount() : 0
     const [customer, setCustomer] = useState(null)
     const [anchorEl, setAnchorEl] = useState(null)
 
     useEffect(() => {
-        // Check if customer is logged in
-        const customerToken = localStorage.getItem('customerToken')
-        const customerData = localStorage.getItem('customer')
-        if (customerToken && customerData) {
-            setCustomer(JSON.parse(customerData))
+        // Check if customer is logged in (skip if in admin preview mode)
+        if (!adminPreview) {
+            const customerToken = localStorage.getItem('customerToken')
+            const customerData = localStorage.getItem('customer')
+            if (customerToken && customerData) {
+                setCustomer(JSON.parse(customerData))
+            }
         }
-    }, [])
+    }, [adminPreview])
 
     const handleMenuOpen = (event) => {
         setAnchorEl(event.currentTarget)
@@ -96,28 +97,6 @@ function StoreNavBar({ store, isPublic = false }) {
                 {store.store_name}
             </Typography>
         </Box>
-
-        {/* Search Bar */}
-        <TextField
-            placeholder="Search bar"
-            variant="outlined"
-            size="small"
-            sx={{
-                flex: 1,
-                maxWidth: '500px',
-                '& .MuiOutlinedInput-root': {
-                    borderRadius: '8px',
-                    backgroundColor: '#f5f5f5'
-                }
-            }}
-            InputProps={{
-                endAdornment: (
-                    <InputAdornment position="end">
-                        <SearchIcon sx={{ color: '#666' }} />
-                    </InputAdornment>
-                )
-            }}
-        />
 
         {/* Right Section: Cart, Login/Account */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -214,9 +193,6 @@ function StoreNavBar({ store, isPublic = false }) {
                     </Button>
                 </>
             )}
-            <IconButton sx={{ color: '#000' }}>
-                <MenuIcon />
-            </IconButton>
         </Box>
     </Box>
 }

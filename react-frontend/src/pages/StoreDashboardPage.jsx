@@ -21,6 +21,8 @@ function StoreDashboardPage() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [productToDelete, setProductToDelete] = useState(null);
     const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+    const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+    const [successMessage, setSuccessMessage] = useState({ title: '', message: '' });
 
     useEffect(() => {
         const fetchStoreAndProducts = async () => {
@@ -111,19 +113,34 @@ function StoreDashboardPage() {
                             ? { ...p, is_active: false }
                             : p
                     ));
-                    alert(data.message + '\n\n' + data.note);
+                    setSuccessMessage({
+                        title: 'Product Deactivated',
+                        message: data.message + '\n\n' + data.note
+                    });
                 } else {
                     // Product was permanently deleted, remove from state
                     setProducts(products.filter(p => p.id !== productToDelete.id));
-                    alert(data.message);
+                    setSuccessMessage({
+                        title: 'Product Deleted',
+                        message: data.message
+                    });
                 }
                 setDeleteDialogOpen(false);
                 setProductToDelete(null);
+                setSuccessDialogOpen(true);
             } else {
-                alert(data.message || 'Failed to delete product');
+                setSuccessMessage({
+                    title: 'Error',
+                    message: data.message || 'Failed to delete product'
+                });
+                setSuccessDialogOpen(true);
             }
         } catch (err) {
-            alert('Failed to delete product. Please try again.');
+            setSuccessMessage({
+                title: 'Error',
+                message: 'Failed to delete product. Please try again.'
+            });
+            setSuccessDialogOpen(true);
         }
     };
 
@@ -138,7 +155,7 @@ function StoreDashboardPage() {
 
     const handlePublishSuccess = (updatedStore) => {
         setStore(updatedStore);
-        setPublishDialogOpen(false);
+        // Don't close the dialog - let the user close it manually or via "View Store" button
     };
 
     if (loading) {
@@ -162,21 +179,22 @@ function StoreDashboardPage() {
             <AdminBar store={store} handlePublish={handlePublishClick} productCount={products.length} />
 
             {/* Store Navbar */}
-            <StoreNavBar store={store} />
+            <StoreNavBar store={store} adminPreview={true} />
 
             {/* Hero Section */}
             <Box
                 sx={{
                     backgroundImage: store.background_image
                         ? `url(${API_STORAGE_URL}/${store.background_image})`
-                        : 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    minHeight: '400px',
+                    minHeight: '500px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     position: 'relative',
+                    overflow: 'hidden',
                     '&::before': {
                         content: '""',
                         position: 'absolute',
@@ -184,20 +202,34 @@ function StoreDashboardPage() {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: 'rgba(240, 240, 240, 0.7)',
+                        background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.2) 100%)',
+                        zIndex: 0
+                    },
+                    '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-10%',
+                        width: '500px',
+                        height: '500px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
                         zIndex: 0
                     }
                 }}
             >
                 <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-                    <Box sx={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
+                    <Box sx={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
                         <Typography
-                            variant="h3"
+                            variant="h2"
                             sx={{
-                                fontWeight: 'bold',
-                                marginBottom: 2,
-                                fontSize: { xs: '32px', md: '48px' },
-                                color: '#000'
+                                fontWeight: 800,
+                                marginBottom: 3,
+                                fontSize: { xs: '40px', md: '64px' },
+                                color: '#fff',
+                                textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                                letterSpacing: '-0.02em',
+                                lineHeight: 1.2
                             }}
                         >
                             {store.store_name}
@@ -205,15 +237,30 @@ function StoreDashboardPage() {
                         <Typography
                             variant="h5"
                             sx={{
-                                color: '#00bcd4',
-                                fontSize: { xs: '18px', md: '24px' },
-                                fontWeight: 500,
-                                lineHeight: 1.6,
-                                marginBottom: 2
+                                color: 'rgba(255, 255, 255, 0.95)',
+                                fontSize: { xs: '18px', md: '22px' },
+                                fontWeight: 400,
+                                lineHeight: 1.7,
+                                marginBottom: 4,
+                                textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                                maxWidth: '600px',
+                                margin: '0 auto',
+                                padding: '0 20px'
                             }}
                         >
                             {store.description || 'Your one-stop online shop for the latest gadgets, accessories, and lifestyle products'}
                         </Typography>
+
+                        {/* Decorative line */}
+                        <Box
+                            sx={{
+                                width: '80px',
+                                height: '4px',
+                                background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 100%)',
+                                margin: '30px auto',
+                                borderRadius: '2px'
+                            }}
+                        />
                     </Box>
                 </Container>
             </Box>
@@ -362,56 +409,37 @@ function StoreDashboardPage() {
             {/* Footer */}
             <Box sx={{ backgroundColor: '#000', color: 'white', padding: '40px 0' }}>
                 <Container maxWidth="lg">
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        {/* Left Side: Logo, Store Name, and Info */}
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                {store.logo ? (
-                                    <img
-                                        src={`${API_STORAGE_URL}/${store.logo}`}
-                                        alt={store.store_name}
-                                        style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '50%', filter: 'brightness(0) invert(1)' }}
-                                    />
-                                ) : (
-                                    <Box sx={{
-                                        width: 32,
-                                        height: 32,
-                                        borderRadius: '50%',
-                                        backgroundColor: 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
-                                        <Typography sx={{ color: '#000', fontSize: '14px', fontWeight: 'bold' }}>
-                                            {store.store_name?.charAt(0) || 'S'}
-                                        </Typography>
-                                    </Box>
-                                )}
-                                <Typography sx={{ fontWeight: 'bold', fontSize: '16px' }}>{store.store_name}</Typography>
-                            </Box>
-                            <Typography sx={{ fontSize: '14px', color: '#ccc', maxWidth: '400px' }}>
-                                {store.address || 'No. 12, Jalan Ampang, Kuala Lumpur, Malaysia'}
-                            </Typography>
-                            <Typography sx={{ fontSize: '14px', color: '#ccc' }}>
-                                {store.contact_email || 'support@store.com'}
-                            </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            {store.logo ? (
+                                <img
+                                    src={`${API_STORAGE_URL}/${store.logo}`}
+                                    alt={store.store_name}
+                                    style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '50%' }}
+                                />
+                            ) : (
+                                <Box sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    backgroundColor: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Typography sx={{ color: '#000', fontSize: '14px', fontWeight: 'bold' }}>
+                                        {store.store_name?.charAt(0) || 'S'}
+                                    </Typography>
+                                </Box>
+                            )}
+                            <Typography sx={{ fontWeight: 'bold', fontSize: '16px' }}>{store.store_name}</Typography>
                         </Box>
-
-                        {/* Right Side: Links */}
-                        <Box sx={{ display: 'flex', gap: 4 }}>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 1
-                            </Typography>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 2
-                            </Typography>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 3
-                            </Typography>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 4
-                            </Typography>
-                        </Box>
+                        <Typography sx={{ fontSize: '14px', color: '#ccc', maxWidth: '400px' }}>
+                            {store.address || 'No. 12, Jalan Ampang, Kuala Lumpur, Malaysia'}
+                        </Typography>
+                        <Typography sx={{ fontSize: '14px', color: '#ccc' }}>
+                            {store.contact_email || 'support@store.com'}
+                        </Typography>
                     </Box>
                 </Container>
             </Box>
@@ -444,6 +472,24 @@ function StoreDashboardPage() {
                 store={store}
                 onSuccess={handlePublishSuccess}
             />
+
+            {/* Success/Error Dialog */}
+            <Dialog
+                open={successDialogOpen}
+                onClose={() => setSuccessDialogOpen(false)}
+            >
+                <DialogTitle>{successMessage.title}</DialogTitle>
+                <DialogContent>
+                    <DialogContentText sx={{ whiteSpace: 'pre-line' }}>
+                        {successMessage.message}
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setSuccessDialogOpen(false)} variant="contained" color="primary">
+                        OK
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </>
     );
 }

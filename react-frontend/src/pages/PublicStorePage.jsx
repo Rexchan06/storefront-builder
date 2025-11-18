@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     Box, Typography, Container, Button, Snackbar, Alert, TextField,
@@ -15,6 +15,7 @@ import StoreNavBar from '../components/StoreNavBar';
 import LoadingScreen from '../components/LoadingScreen';
 import { useCart } from '../context/CartContext';
 import { API_URL, API_STORAGE_URL, buildQueryString } from '../services/api';
+import { updatePageForStore } from '../utils/pageUtils';
 
 function PublicStorePage() {
     const { slug } = useParams();
@@ -24,9 +25,11 @@ function PublicStorePage() {
     // Core state
     const [store, setStore] = useState(null);
     const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [initialLoading, setInitialLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const isInitialMount = useRef(true);
 
     // Search & Filter state
     const [searchQuery, setSearchQuery] = useState('');
@@ -86,7 +89,10 @@ function PublicStorePage() {
     // Fetch store and products with filters
     const fetchPublicStore = useCallback(async () => {
         try {
-            setLoading(true);
+            // Only show loading spinner for subsequent requests, not full screen loader
+            if (!isInitialMount.current) {
+                setLoading(true);
+            }
 
             // Build query parameters
             const params = {
@@ -112,12 +118,16 @@ function PublicStorePage() {
 
             if (!response.ok) {
                 setError(data.message || 'Store not found');
+                setInitialLoading(false);
                 setLoading(false);
                 return;
             }
 
             setStore(data.store);
             setProducts(data.products || []);
+
+            // Update page title and favicon for this store
+            updatePageForStore(data.store);
             setPagination(data.pagination || {
                 current_page: 1,
                 last_page: 1,
@@ -127,6 +137,10 @@ function PublicStorePage() {
         } catch (err) {
             setError('Failed to load store. Please try again later.');
         } finally {
+            if (isInitialMount.current) {
+                isInitialMount.current = false;
+                setInitialLoading(false);
+            }
             setLoading(false);
         }
     }, [slug, currentPage, debouncedSearch, filters]);
@@ -212,7 +226,7 @@ function PublicStorePage() {
         return count;
     };
 
-    if (loading) {
+    if (initialLoading) {
         return <LoadingScreen />;
     }
 
@@ -239,14 +253,15 @@ function PublicStorePage() {
                 sx={{
                     backgroundImage: store.background_image
                         ? `url(${API_STORAGE_URL}/${store.background_image})`
-                        : 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)',
+                        : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    minHeight: '400px',
+                    minHeight: '500px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     position: 'relative',
+                    overflow: 'hidden',
                     '&::before': {
                         content: '""',
                         position: 'absolute',
@@ -254,20 +269,34 @@ function PublicStorePage() {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: 'rgba(240, 240, 240, 0.7)',
+                        background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.2) 100%)',
+                        zIndex: 0
+                    },
+                    '&::after': {
+                        content: '""',
+                        position: 'absolute',
+                        top: '-50%',
+                        right: '-10%',
+                        width: '500px',
+                        height: '500px',
+                        borderRadius: '50%',
+                        background: 'radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%)',
                         zIndex: 0
                     }
                 }}
             >
                 <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
-                    <Box sx={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
+                    <Box sx={{ maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
                         <Typography
-                            variant="h3"
+                            variant="h2"
                             sx={{
-                                fontWeight: 'bold',
-                                marginBottom: 2,
-                                fontSize: { xs: '32px', md: '48px' },
-                                color: '#000'
+                                fontWeight: 800,
+                                marginBottom: 3,
+                                fontSize: { xs: '40px', md: '64px' },
+                                color: '#fff',
+                                textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                                letterSpacing: '-0.02em',
+                                lineHeight: 1.2
                             }}
                         >
                             {store.store_name}
@@ -275,15 +304,30 @@ function PublicStorePage() {
                         <Typography
                             variant="h5"
                             sx={{
-                                color: '#00bcd4',
-                                fontSize: { xs: '18px', md: '24px' },
-                                fontWeight: 500,
-                                lineHeight: 1.6,
-                                marginBottom: 2
+                                color: 'rgba(255, 255, 255, 0.95)',
+                                fontSize: { xs: '18px', md: '22px' },
+                                fontWeight: 400,
+                                lineHeight: 1.7,
+                                marginBottom: 4,
+                                textShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                                maxWidth: '600px',
+                                margin: '0 auto',
+                                padding: '0 20px'
                             }}
                         >
                             {store.description || 'Your one-stop online shop for the latest gadgets, accessories, and lifestyle products'}
                         </Typography>
+
+                        {/* Decorative line */}
+                        <Box
+                            sx={{
+                                width: '80px',
+                                height: '4px',
+                                background: 'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.8) 50%, rgba(255,255,255,0) 100%)',
+                                margin: '30px auto',
+                                borderRadius: '2px'
+                            }}
+                        />
                     </Box>
                 </Container>
             </Box>
@@ -381,16 +425,30 @@ function PublicStorePage() {
                             </Box>
                         )}
 
-                        {loading ? (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', padding: 6 }}>
-                                <CircularProgress />
-                            </Box>
-                        ) : products.length === 0 ? (
+                        {products.length === 0 && !loading ? (
                             <Box sx={{ padding: 6, backgroundColor: '#f5f5f5', borderRadius: '8px', textAlign: 'center' }}>
                                 <Typography sx={{ color: '#666' }}>No products available at the moment.</Typography>
                             </Box>
                         ) : (
-                            <>
+                            <Box sx={{ position: 'relative' }}>
+                                {/* Show subtle loading indicator */}
+                                {loading && (
+                                    <Box sx={{
+                                        position: 'absolute',
+                                        top: 0,
+                                        left: 0,
+                                        right: 0,
+                                        bottom: 0,
+                                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        zIndex: 10,
+                                        borderRadius: '8px'
+                                    }}>
+                                        <CircularProgress size={40} />
+                                    </Box>
+                                )}
                                 <Box sx={{
                                     display: 'grid',
                                     gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
@@ -400,11 +458,18 @@ function PublicStorePage() {
                                     {products.map(product => (
                                         <Box
                                             key={product.id}
+                                            onClick={() => navigate(`/store/${slug}/product/${product.id}`)}
                                             sx={{
                                                 backgroundColor: '#fff',
                                                 borderRadius: '8px',
                                                 overflow: 'hidden',
-                                                border: '1px solid #e0e0e0'
+                                                border: '1px solid #e0e0e0',
+                                                cursor: 'pointer',
+                                                transition: 'transform 0.2s, box-shadow 0.2s',
+                                                '&:hover': {
+                                                    transform: 'translateY(-4px)',
+                                                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                                                }
                                             }}
                                         >
                                             <Box
@@ -428,26 +493,25 @@ function PublicStorePage() {
                                                 ) : null}
                                             </Box>
                                             <Box sx={{ padding: '12px' }}>
-                                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 1 }}>
-                                                    <Box sx={{ flex: 1 }}>
-                                                        <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', marginBottom: 0.5 }}>
-                                                            {product.name}
-                                                        </Typography>
-                                                        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '14px' }}>
-                                                            RM{product.price}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                                        <Typography variant="caption" sx={{ fontSize: '11px', color: '#666' }}>
-                                                            {product.stock_quantity}
-                                                        </Typography>
-                                                    </Box>
+                                                <Box sx={{ marginBottom: 1 }}>
+                                                    <Typography variant="body2" sx={{ fontWeight: 'bold', fontSize: '12px', marginBottom: 0.5 }}>
+                                                        {product.name}
+                                                    </Typography>
+                                                    <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '14px', marginBottom: 0.5 }}>
+                                                        RM{product.price}
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ fontSize: '11px', color: '#666' }}>
+                                                        Stock: {product.stock_quantity}
+                                                    </Typography>
                                                 </Box>
                                                 <Box sx={{ display: 'flex', gap: 1, marginTop: 1 }}>
                                                     <Button
                                                         variant="contained"
                                                         size="small"
-                                                        onClick={() => handleBuyNow(product)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleBuyNow(product);
+                                                        }}
                                                         disabled={product.stock_quantity === 0}
                                                         sx={{
                                                             backgroundColor: '#000',
@@ -467,7 +531,10 @@ function PublicStorePage() {
                                                     <Button
                                                         variant="outlined"
                                                         size="small"
-                                                        onClick={() => handleAddToCart(product)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleAddToCart(product);
+                                                        }}
                                                         disabled={product.stock_quantity === 0}
                                                         sx={{
                                                             color: '#000',
@@ -529,7 +596,7 @@ function PublicStorePage() {
                                         </Button>
                                     </Box>
                                 )}
-                            </>
+                            </Box>
                         )}
                     </Box>
                 </Container>
@@ -538,56 +605,37 @@ function PublicStorePage() {
             {/* Footer */}
             <Box sx={{ backgroundColor: '#000', color: 'white', padding: '40px 0' }}>
                 <Container maxWidth="lg">
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        {/* Left Side: Logo, Store Name, and Info */}
-                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                {store.logo ? (
-                                    <img
-                                        src={`${API_STORAGE_URL}/${store.logo}`}
-                                        alt={store.store_name}
-                                        style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '50%', filter: 'brightness(0) invert(1)' }}
-                                    />
-                                ) : (
-                                    <Box sx={{
-                                        width: 32,
-                                        height: 32,
-                                        borderRadius: '50%',
-                                        backgroundColor: 'white',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
-                                        <Typography sx={{ color: '#000', fontSize: '14px', fontWeight: 'bold' }}>
-                                            {store.store_name?.charAt(0) || 'S'}
-                                        </Typography>
-                                    </Box>
-                                )}
-                                <Typography sx={{ fontWeight: 'bold', fontSize: '16px' }}>{store.store_name}</Typography>
-                            </Box>
-                            <Typography sx={{ fontSize: '14px', color: '#ccc', maxWidth: '400px' }}>
-                                {store.address || 'No. 12, Jalan Ampang, Kuala Lumpur, Malaysia'}
-                            </Typography>
-                            <Typography sx={{ fontSize: '14px', color: '#ccc' }}>
-                                {store.contact_email || 'support@store.com'}
-                            </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            {store.logo ? (
+                                <img
+                                    src={`${API_STORAGE_URL}/${store.logo}`}
+                                    alt={store.store_name}
+                                    style={{ height: '32px', width: '32px', objectFit: 'contain', borderRadius: '50%' }}
+                                />
+                            ) : (
+                                <Box sx={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: '50%',
+                                    backgroundColor: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}>
+                                    <Typography sx={{ color: '#000', fontSize: '14px', fontWeight: 'bold' }}>
+                                        {store.store_name?.charAt(0) || 'S'}
+                                    </Typography>
+                                </Box>
+                            )}
+                            <Typography sx={{ fontWeight: 'bold', fontSize: '16px' }}>{store.store_name}</Typography>
                         </Box>
-
-                        {/* Right Side: Links */}
-                        <Box sx={{ display: 'flex', gap: 4 }}>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 1
-                            </Typography>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 2
-                            </Typography>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 3
-                            </Typography>
-                            <Typography sx={{ cursor: 'pointer', fontSize: '14px', '&:hover': { color: '#00bcd4' } }}>
-                                Link 4
-                            </Typography>
-                        </Box>
+                        <Typography sx={{ fontSize: '14px', color: '#ccc', maxWidth: '400px' }}>
+                            {store.address || 'No. 12, Jalan Ampang, Kuala Lumpur, Malaysia'}
+                        </Typography>
+                        <Typography sx={{ fontSize: '14px', color: '#ccc' }}>
+                            {store.contact_email || 'support@store.com'}
+                        </Typography>
                     </Box>
                 </Container>
             </Box>
@@ -610,7 +658,12 @@ function PublicStorePage() {
                 open={filterDrawerOpen}
                 onClose={() => setFilterDrawerOpen(false)}
                 PaperProps={{
-                    sx: { width: { xs: '100%', sm: '400px' }, padding: 3 }
+                    sx: {
+                        width: { xs: '100%', sm: '400px' },
+                        padding: 3,
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }
                 }}
             >
                 {/* Drawer Header */}
@@ -648,28 +701,71 @@ function PublicStorePage() {
                         Price Range
                     </Typography>
                     <Box sx={{ paddingX: 1 }}>
-                        <Typography variant="body2" sx={{ marginBottom: 1, color: '#666' }}>
-                            Min: RM{filters.priceMin}
-                        </Typography>
-                        <Slider
-                            value={filters.priceMin}
-                            onChange={(e, value) => handleFilterChange('priceMin', value)}
-                            min={0}
-                            max={filters.priceMax}
-                            step={10}
-                            sx={{ color: '#00bcd4' }}
-                        />
-                        <Typography variant="body2" sx={{ marginTop: 2, marginBottom: 1, color: '#666' }}>
-                            Max: RM{filters.priceMax}
-                        </Typography>
-                        <Slider
-                            value={filters.priceMax}
-                            onChange={(e, value) => handleFilterChange('priceMax', value)}
-                            min={filters.priceMin}
-                            max={10000}
-                            step={10}
-                            sx={{ color: '#00bcd4' }}
-                        />
+                        {/* Min Price */}
+                        <Box sx={{ marginBottom: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 1 }}>
+                                <Typography variant="body2" sx={{ color: '#666', minWidth: '80px' }}>
+                                    Min Price:
+                                </Typography>
+                                <TextField
+                                    value={filters.priceMin}
+                                    onChange={(e) => {
+                                        const value = parseInt(e.target.value) || 0;
+                                        if (value >= 0 && value <= filters.priceMax) {
+                                            handleFilterChange('priceMin', value);
+                                        }
+                                    }}
+                                    type="number"
+                                    size="small"
+                                    inputProps={{ min: 0, max: filters.priceMax, step: 10 }}
+                                    sx={{ flex: 1 }}
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start">RM</InputAdornment>
+                                    }}
+                                />
+                            </Box>
+                            <Slider
+                                value={filters.priceMin}
+                                onChange={(e, value) => handleFilterChange('priceMin', value)}
+                                min={0}
+                                max={filters.priceMax}
+                                step={10}
+                                sx={{ color: '#00bcd4' }}
+                            />
+                        </Box>
+
+                        {/* Max Price */}
+                        <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, marginBottom: 1 }}>
+                                <Typography variant="body2" sx={{ color: '#666', minWidth: '80px' }}>
+                                    Max Price:
+                                </Typography>
+                                <TextField
+                                    value={filters.priceMax}
+                                    onChange={(e) => {
+                                        const value = parseInt(e.target.value) || 0;
+                                        if (value >= filters.priceMin && value <= 10000) {
+                                            handleFilterChange('priceMax', value);
+                                        }
+                                    }}
+                                    type="number"
+                                    size="small"
+                                    inputProps={{ min: filters.priceMin, max: 10000, step: 10 }}
+                                    sx={{ flex: 1 }}
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start">RM</InputAdornment>
+                                    }}
+                                />
+                            </Box>
+                            <Slider
+                                value={filters.priceMax}
+                                onChange={(e, value) => handleFilterChange('priceMax', value)}
+                                min={filters.priceMin}
+                                max={10000}
+                                step={10}
+                                sx={{ color: '#00bcd4' }}
+                            />
+                        </Box>
                     </Box>
                 </Box>
 

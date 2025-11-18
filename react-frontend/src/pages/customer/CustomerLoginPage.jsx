@@ -4,6 +4,7 @@ import { Box, TextField, Button, Typography, Container, Paper, Alert } from '@mu
 import StoreNavBar from '../../components/StoreNavBar';
 import LoadingScreen from '../../components/LoadingScreen';
 import { API_URL, API_STORAGE_URL } from '../../services/api';
+import { updatePageForStore } from '../../utils/pageUtils';
 
 function CustomerLoginPage() {
     const { slug } = useParams();
@@ -24,6 +25,9 @@ function CustomerLoginPage() {
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);
+
+                    // Update page title and favicon for this store
+                    updatePageForStore(data.store);
                 }
             } catch (err) {
                 console.error('Failed to fetch store:', err);

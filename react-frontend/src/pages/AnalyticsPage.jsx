@@ -190,7 +190,7 @@ const AnalyticsPage = () => {
 
   const handlePublishSuccess = (updatedStore) => {
     setStore(updatedStore);
-    setPublishDialogOpen(false);
+    // Don't close the dialog - let the user close it manually or via "View Store" button
   };
 
   const COLORS = ['#FF9800', '#2196F3', '#9C27B0', '#4CAF50', '#F44336'];
@@ -284,7 +284,7 @@ const AnalyticsPage = () => {
         <Grid container spacing={3}>
           {/* Revenue Over Time Chart */}
           <Grid item xs={12} md={5}>
-            <Paper sx={{ p: 3 }}>
+            <Paper sx={{ p: 3, height: 424, display: 'flex', flexDirection: 'column' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   Revenue Over Time
@@ -333,7 +333,7 @@ const AnalyticsPage = () => {
 
           {/* Order Status Breakdown */}
           <Grid item xs={12} md={3}>
-            <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Paper sx={{ p: 3, height: 424, display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" gutterBottom>
                 Orders by Status
               </Typography>
@@ -343,10 +343,10 @@ const AnalyticsPage = () => {
                     <Pie
                       data={getOrderStatusData()}
                       cx="50%"
-                      cy="50%"
+                      cy="45%"
                       labelLine={false}
                       label={false}
-                      outerRadius={60}
+                      outerRadius={70}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -357,7 +357,7 @@ const AnalyticsPage = () => {
                     <Tooltip formatter={(value, name, props) => [`${value} orders`, props.payload.name]} />
                     <Legend
                       verticalAlign="bottom"
-                      height={36}
+                      height={50}
                       formatter={(value, entry) => `${value} (${entry.payload.value})`}
                     />
                   </PieChart>
@@ -368,11 +368,11 @@ const AnalyticsPage = () => {
 
           {/* Top Selling Products */}
           <Grid item xs={12} md={4}>
-            <Paper sx={{ p: 3, height: '100%' }}>
+            <Paper sx={{ p: 3, height: 424, display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" gutterBottom>
                 Top Selling Products
               </Typography>
-              <TableContainer sx={{ maxHeight: 350, overflow: 'auto' }}>
+              <TableContainer sx={{ flexGrow: 1, overflow: 'auto' }}>
                 <Table size="small">
                   <TableHead>
                     <TableRow>

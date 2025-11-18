@@ -5,6 +5,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import StoreNavBar from '../components/StoreNavBar';
 import LoadingScreen from '../components/LoadingScreen';
 import { API_URL } from '../services/api';
+import { updatePageForStore } from '../utils/pageUtils';
 
 function PaymentSuccessPage() {
     const { slug, orderId } = useParams();
@@ -26,6 +27,9 @@ function PaymentSuccessPage() {
                 const storeData = await storeResponse.json();
                 if (storeResponse.ok) {
                     setStore(storeData.store);
+
+                    // Update page title and favicon for this store
+                    updatePageForStore(storeData.store);
                 }
 
                 // Verify payment and update order status

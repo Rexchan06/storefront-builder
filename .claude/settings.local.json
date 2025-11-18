@@ -5,7 +5,9 @@
       "Bash(dir:*)",
       "Bash(php -i:*)",
       "Bash(php --ini:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Bash(more:*)",
+      "Bash(powershell -Command \"Get-Content storage\\logs\\laravel.log -Tail 100\")"
     ],
     "deny": [],
     "ask": []

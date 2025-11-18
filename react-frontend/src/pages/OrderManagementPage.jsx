@@ -214,7 +214,7 @@ const OrderManagementPage = () => {
 
   const handlePublishSuccess = (updatedStore) => {
     setStore(updatedStore);
-    setPublishDialogOpen(false);
+    // Don't close the dialog - let the user close it manually or via "View Store" button
   };
 
   if (loading) {
@@ -421,7 +421,7 @@ const OrderManagementPage = () => {
                         Shipping Address
                       </Typography>
                       <Typography variant="body2">
-                        {selectedOrder.shipping_address}
+                        {selectedOrder.customer_address || 'No address provided'}
                       </Typography>
                     </CardContent>
                   </Card>
@@ -447,9 +447,9 @@ const OrderManagementPage = () => {
                           <TableRow key={item.id}>
                             <TableCell>{item.product?.name || item.product_name}</TableCell>
                             <TableCell align="center">{item.quantity}</TableCell>
-                            <TableCell align="right">{formatCurrency(item.price)}</TableCell>
+                            <TableCell align="right">{formatCurrency(item.unit_price)}</TableCell>
                             <TableCell align="right">
-                              {formatCurrency(item.quantity * item.price)}
+                              {formatCurrency(item.quantity * item.unit_price)}
                             </TableCell>
                           </TableRow>
                         ))}

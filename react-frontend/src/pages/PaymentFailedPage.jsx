@@ -4,6 +4,7 @@ import { Box, Typography, Container, Paper, Button, CircularProgress } from '@mu
 import ErrorIcon from '@mui/icons-material/Error';
 import StoreNavBar from '../components/StoreNavBar';
 import { API_URL } from '../services/api';
+import { updatePageForStore } from '../utils/pageUtils';
 
 function PaymentFailedPage() {
     const { slug } = useParams();
@@ -18,6 +19,9 @@ function PaymentFailedPage() {
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);
+
+                    // Update page title and favicon for this store
+                    updatePageForStore(data.store);
                 }
             } catch (err) {
                 console.error('Failed to fetch store:', err);

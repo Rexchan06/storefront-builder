@@ -5,8 +5,9 @@ import StoreNavBar from '../components/StoreNavBar';
 import LoadingScreen from '../components/LoadingScreen';
 import { useCart } from '../context/CartContext';
 import { API_URL } from '../services/api';
+import { updatePageForStore } from '../utils/pageUtils';
 
-function CheckoutForm({ store, cartItems, totalAmount }) {
+function CheckoutForm({ store, cartItems, totalAmount, onRedirecting }) {
     const { slug } = useParams();
     const navigate = useNavigate();
     const { clearCart } = useCart();
@@ -29,7 +30,9 @@ function CheckoutForm({ store, cartItems, totalAmount }) {
             setFormData(prev => ({
                 ...prev,
                 customer_name: customerData.name || '',
-                customer_email: customerData.email || ''
+                customer_email: customerData.email || '',
+                customer_phone: customerData.phone || '',
+                customer_address: customerData.address || '',
             }));
         }
     }, []);
@@ -100,12 +103,14 @@ function CheckoutForm({ store, cartItems, totalAmount }) {
             }
 
             // Step 3: Redirect to Stripe Checkout
+            onRedirecting(true);
             clearCart();
             window.location.href = checkoutData.checkout_url;
 
         } catch (err) {
             setError(err.message || 'Payment failed. Please try again.');
             setLoading(false);
+            onRedirecting(false);
         }
     };
 
@@ -229,6 +234,7 @@ function CheckoutPage() {
     const { cart, getCartTotal } = useCart();
     const [store, setStore] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [redirecting, setRedirecting] = useState(false);
 
     useEffect(() => {
         const fetchStore = async () => {
@@ -237,6 +243,9 @@ function CheckoutPage() {
                 const data = await response.json();
                 if (response.ok) {
                     setStore(data.store);
+
+                    // Update page title and favicon for this store
+                    updatePageForStore(data.store);
                 }
             } catch (err) {
                 console.error('Failed to fetch store:', err);
@@ -263,7 +272,7 @@ function CheckoutPage() {
         );
     }
 
-    if (cartItems.length === 0) {
+    if (cartItems.length === 0 && !redirecting) {
         return (
             <>
                 <StoreNavBar store={store} isPublic={true} />
@@ -279,6 +288,28 @@ function CheckoutPage() {
                         </Button>
                     </Paper>
                 </Container>
+            </>
+        );
+    }
+
+    if (redirecting) {
+        return (
+            <>
+                <StoreNavBar store={store} isPublic={true} />
+                <Box sx={{ backgroundColor: '#f5f5f5', minHeight: 'calc(100vh - 64px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Box sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2,
+                        padding: 4
+                    }}>
+                        <CircularProgress size={60} />
+                        <Typography variant="h5" color="text.secondary">
+                            Redirecting to secure payment...
+                        </Typography>
+                    </Box>
+                </Box>
             </>
         );
     }
@@ -317,7 +348,12 @@ function CheckoutPage() {
                             </Box>
                         </Box>
 
-                        <CheckoutForm store={store} cartItems={cartItems} totalAmount={totalAmount} />
+                        <CheckoutForm
+                            store={store}
+                            cartItems={cartItems}
+                            totalAmount={totalAmount}
+                            onRedirecting={setRedirecting}
+                        />
                     </Paper>
                 </Container>
             </Box>
